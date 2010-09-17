@@ -143,7 +143,7 @@ static void softap_handle_iface_event(void)
                 (struct sockaddr *)&rtnl_local, &slen);
 
         if (cnt <= 0) {
-			buffer[0] = '\0';
+            buffer[0] = '\0';
             LOGD("recvfrom failed");
             return;
         }

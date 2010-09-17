@@ -58,6 +58,32 @@
 
 #include <sys/system_properties.h>
 
+#ifndef WIFI_DRIVER_MODULE_PATH
+#define WIFI_DRIVER_MODULE_PATH         "/system/lib/modules/wlan.ko"
+#endif
+
+#ifndef WIFI_DRIVER_MODULE_NAME
+#define WIFI_DRIVER_MODULE_NAME         "wlan"
+#endif
+
+#ifndef WIFI_SDIO_IF_DRIVER_MODULE_PATH
+#define WIFI_SDIO_IF_DRIVER_MODULE_PATH "/system/lib/modules/librasdioif.ko"
+#endif
+
+#ifndef WIFI_SDIO_IF_DRIVER_MODULE_NAME
+#define WIFI_SDIO_IF_DRIVER_MODULE_NAME "librasdioif"
+#endif
+
+#ifndef WIFI_SDIO_IF_DRIVER_MODULE_ARG 
+#define WIFI_SDIO_IF_DRIVER_MODULE_ARG  ""
+#endif
+
+#ifdef WIFI_DRIVER_MODULE_ARG
+#undef WIFI_DRIVER_MODULE_ARG
+#endif
+
+#define WIFI_DRIVER_MODULE_ARG          "con_mode=1"
+
 extern int init_module(const char *name, u32, const s8 *);
 extern int delete_module(const char *name, int);
 
@@ -161,15 +187,7 @@ s32 wifi_qsap_load_driver(void)
         LOGE("Could not turn on the polling...");
     }
 
-#define SDIO_IF_DRV      "/system/lib/modules/librasdioif.ko"
-#define SDIO_IF_DRV_ARG  ""
-#define SDIO_IF_DRV_TAG  "librasdioif"
-
-#define SOFTAP_DRV      "/system/lib/modules/libra.ko"
-#define SOFTAP_DRV_ARG  "con_mode=1"
-#define SOFTAP_DRV_TAG  "libra"
-
-    ret = insmod(SDIO_IF_DRV, SDIO_IF_DRV_ARG, SDIO_IF_DRV_TAG " ");
+    ret = insmod(WIFI_SDIO_IF_DRIVER_MODULE_PATH, WIFI_SDIO_IF_DRIVER_MODULE_ARG, WIFI_SDIO_IF_DRIVER_MODULE_NAME " ");
 
     if ( ret != 0 ) {
         LOGE("init_module failed sdioif\n");
@@ -178,7 +196,7 @@ s32 wifi_qsap_load_driver(void)
 
     sched_yield();
 
-    ret = insmod(SOFTAP_DRV, SOFTAP_DRV_ARG, SOFTAP_DRV_TAG " ");
+    ret = insmod(WIFI_DRIVER_MODULE_PATH, WIFI_DRIVER_MODULE_ARG, WIFI_DRIVER_MODULE_NAME " ");
 
     if ( ret != 0 ) {
         LOGE("init_module failed libra_softap\n");
@@ -202,8 +220,8 @@ s32 wifi_qsap_unload_wifi_sta_driver(void)
         LOGE("Could not turn on the polling...");
     }
 
-    if ( check_driver_loaded(SOFTAP_DRV_TAG " ") ) {
-        if ( rmmod(SOFTAP_DRV_TAG) ) {
+    if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
+        if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the station mode wifi driver...\n");
             ret = 1;
             goto end;
@@ -212,8 +230,8 @@ s32 wifi_qsap_unload_wifi_sta_driver(void)
 
     sched_yield();
 
-    if ( check_driver_loaded(SDIO_IF_DRV_TAG " ") ) {
-        if ( rmmod(SDIO_IF_DRV_TAG) ) {
+    if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
+        if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the station mode librasdioif driver\n");
             ret = 1;
             goto end;
@@ -236,8 +254,8 @@ s32 wifi_qsap_unload_driver()
         LOGE("Could not turn on the polling...");
     }
 
-    if ( check_driver_loaded(SOFTAP_DRV_TAG " ") ) {
-        if ( rmmod(SOFTAP_DRV_TAG) ) {
+    if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
+        if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the libra_softap driver\n");
             ret = 1;
             goto end;
@@ -246,8 +264,8 @@ s32 wifi_qsap_unload_driver()
 
     sched_yield();
 
-    if ( check_driver_loaded(SDIO_IF_DRV_TAG " ") ) {
-        if ( rmmod(SDIO_IF_DRV_TAG) ) {
+    if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
+        if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the librasdioif driver\n");
             ret = 1;
             goto end;
@@ -334,11 +352,15 @@ s32 commit(void)
             LOGE("%s: stop bss failed \n", __func__);
             return ret;
         }
+        sleep(1);
     }
 
-	sleep(1);
+    ret = wifi_qsap_start_softap();
 
-    return wifi_qsap_start_softap();
+    if( eSUCCESS != ret )
+        wifi_qsap_unload_driver();
+
+    return ret;
 #else
     return eSUCCESS;
 #endif
@@ -407,6 +429,7 @@ s32 wifi_qsap_reload_softap()
     sleep(1);
 
     if (eSUCCESS != wifi_qsap_start_softap()) {
+        wifi_qsap_unload_driver();
         return ret;
     }
 

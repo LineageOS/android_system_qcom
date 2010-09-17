@@ -54,7 +54,6 @@
 #include "cutils/properties.h"
 #include "cutils/log.h"
 
-
 #define SKIP_BLANK_SPACE(x) {while(*x != '\0') { if((*x == ' ') || (*x == '\t')) x++; else break; }}
 
 /** If this variable is enabled, the soft AP is reloaded, after the commit
@@ -175,9 +174,10 @@ char *fIni = INI_FILE;
  * @param plen [IN-OUT] The length of the buffer is provided as input.
  *                      The length of the configuration parameter value, stored
  *                      in the 'presp', is provided as the output
+ * @param ignore_comment [IN] if set, read the commented value also
  * @return void 
 */
-static s32 qsap_read_cfg(s8 *pfile, s8 *pcmd, s8 *presp, u32 *plen, s8 *var)
+static s32 qsap_read_cfg(s8 *pfile, s8 *pcmd, s8 *presp, u32 *plen, s8 *var, s32 ignore_comment)
 {
     FILE *fcfg;
     s8    buf[MAX_CONF_LINE_LEN];
@@ -200,7 +200,10 @@ static s32 qsap_read_cfg(s8 *pfile, s8 *pcmd, s8 *presp, u32 *plen, s8 *var)
 
         /** Skip the commented lines */
         if(buf[0] == '#') {
-            continue;
+            if (ignore_comment) {
+                pline++;
+			}
+            else continue;
         }
     
         /** Identify the configuration parameter in the configuration file */
@@ -256,8 +259,12 @@ static s32 qsap_write_cfg(s8 *pfile, s8 * pcmd, s8 *pVal, s8 *presp, u32 *plen, 
         return eERR_FILE_OPEN;
     }
 
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
     /** Open a temporary file */
-    ftmp = fopen(TMP_FILE, "w");
+    ftmp = fopen(buf, "w+");
     if(NULL == ftmp) {
         LOGE("%s : unable to open tmp file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
@@ -307,13 +314,17 @@ static s32 qsap_write_cfg(s8 *pfile, s8 * pcmd, s8 *pVal, s8 *presp, u32 *plen, 
     fclose(fcfg);
     fclose(ftmp);
 
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
     /** Restore the updated configuration file */
-    result = rename(TMP_FILE, pfile);
+    result = rename(buf, pfile);
 
     *plen = snprintf(presp, *plen, "%s", (result == eERR_UNKNOWN) ? ERR_FEATURE_NOT_ENABLED : SUCCESS);
 
     /** Remove the temporary file. Dont care the return value */
-    unlink(TMP_FILE);
+    unlink(buf);
 
     if(result == eERR_UNKNOWN)
         return eERR_FEATURE_NOT_ENABLED;
@@ -336,7 +347,7 @@ static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
     u32 temp = *plen;
 
     /** Read the WEP default key */
-    qsap_read_cfg(pfile, cmd_list[eCMD_DEFAULT_KEY], presp, plen, NULL);
+    qsap_read_cfg(pfile, cmd_list[eCMD_DEFAULT_KEY], presp, plen, NULL, GET_ENABLED_ONLY);
 
     if ( !strcmp(presp, ERR_FEATURE_NOT_ENABLED) ) {
         *plen = temp;
@@ -344,7 +355,7 @@ static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
         /* WEP, is not enabled */
 
         /** Read WPA security status */
-        qsap_read_cfg(pfile, qsap_str[STR_WPA], presp, plen, NULL);
+        qsap_read_cfg(pfile, qsap_str[STR_WPA], presp, plen, NULL, GET_ENABLED_ONLY);
         if ( !strcmp(presp, ERR_FEATURE_NOT_ENABLED) ) {
             /** WPA is disabled, No security */
             mode = SEC_MODE_NONE;
@@ -362,7 +373,7 @@ static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
     else {
         /** Verify if, WPA is disabled */
         *plen = temp;
-        qsap_read_cfg(pfile, qsap_str[STR_WPA], presp, plen, NULL);
+        qsap_read_cfg(pfile, qsap_str[STR_WPA], presp, plen, NULL, GET_ENABLED_ONLY);
         if ( !strcmp(presp, ERR_FEATURE_NOT_ENABLED) ) {
             /** WPA is disabled, hence WEP is enabled */
             mode = SEC_MODE_WEP;
@@ -404,9 +415,13 @@ static s32 qsap_change_cfg(s8 *pfile, s8 *pcmd, u32 status)
         LOGE("%s : unable to open file \n", __func__);
         return eERR_UNKNOWN;
     }
+    
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
 
     /** Open a temporary file */
-    ftmp = fopen(TMP_FILE, "w");
+    ftmp = fopen(buf, "w");
     if(NULL == ftmp) {
         LOGE("%s : unable to open tmp file \n", __func__);
         fclose(fcfg);
@@ -440,14 +455,18 @@ static s32 qsap_change_cfg(s8 *pfile, s8 *pcmd, u32 status)
     fclose(fcfg);
     fclose(ftmp);
 
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
     /** Restore the new configuration file */
-    if(eERR_UNKNOWN == rename(TMP_FILE, pfile)) {
+    if(eERR_UNKNOWN == rename(buf, pfile)) {
         LOGE("unable to rename the file \n");
         return eERR_UNKNOWN;
     }
 
     /** Delete the temporary file */
-    unlink(TMP_FILE);
+    unlink(buf);
 
     return 0;
 }
@@ -600,7 +619,7 @@ end:
 */
 static s8 *qsap_get_allow_deny_file_name(s8 *pcfgfile, s8 *pcmd, s8 *pfile, u32 *plen)
 {
-    if(eSUCCESS == qsap_read_cfg(pcfgfile, pcmd, pfile, plen, NULL)) {
+    if(eSUCCESS == qsap_read_cfg(pcfgfile, pcmd, pfile, plen, NULL, GET_ENABLED_ONLY)) {
         pfile[*plen] = '\0';
         return strchr(pfile, '=') + 1;
     }
@@ -665,18 +684,18 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
         fclose(fp);
         fp = fopen(pfile, "r+");
     }
-    
+
     if(NULL == fp) {
         LOGE("%s : unable to open the file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
-    
-    /** count the MAC address in the MAC list file */    
+
+    /** count the MAC address in the MAC list file */
     while(NULL != (fgets(buf, 32, fp))) {
         num_macs++;
     }
-    
+
     /** Evaluate the allowed limit */
     if(num_macs >= MAX_ALLOWED_MAC) {
         LOGE("%s : File is full\n", __func__);
@@ -695,7 +714,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
             macbuf[i] = *pVal;
             i++;
             pVal++;
-    
+
             if(i == MAC_ADDR_LEN)
                 break;
         }
@@ -724,7 +743,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     fclose(fp);
     
     *plen = snprintf(presp, *plen, "%s", SUCCESS);
-    
+
     return;
 }
 
@@ -755,8 +774,12 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
         return;
     }
 
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
     /** Open a temporary file */
-    ftmp = fopen(TMP_FILE, "w");
+    ftmp = fopen(buf, "w");
 
     if(ftmp == NULL) {
         LOGE("%s : unable to open the file \n", __func__);
@@ -803,12 +826,16 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     fclose(fp);
     fclose(ftmp);
 
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
     /** Restore the configuration file */
-    status = rename(TMP_FILE, pfile);
+    status = rename(buf, pfile);
     
     snprintf(presp, *plen, "%s", (status == eERR_UNKNOWN) ? ERR_FEATURE_NOT_ENABLED : SUCCESS);
 
-    unlink(TMP_FILE);
+    unlink(buf);
         
     return;
 }
@@ -881,7 +908,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
 
     /** Identify the allow or deny file */
     if(eCMD_ALLOW_LIST == cNum) {
-        sNum = STR_ACCEPT_MAC_FILE;    
+        sNum = STR_ACCEPT_MAC_FILE;
     }
     else if(eCMD_DENY_LIST == cNum) {
         sNum = STR_DENY_MAC_FILE;
@@ -891,7 +918,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
         return;
     }
 
-    /** Get the MAC allow or MAC deny file path */    
+    /** Get the MAC allow or MAC deny file path */
     len_remain = MAX_CONF_LINE_LEN;
     if(NULL == (pfile = qsap_get_allow_deny_file_name(fconfile, qsap_str[sNum], buf, &len_remain))) {
         LOGE("%s:Unknown error\n", __func__);
@@ -899,7 +926,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
         return;
     }
 
-    /** Open allow / deny file, and read the MAC addresses */    
+    /** Open allow / deny file, and read the MAC addresses */
     fp = fopen(pfile, "r");
     if(NULL == fp) {
         LOGE("%s: file open error\n",__func__);
@@ -920,7 +947,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
     while(NULL != (fgets(buf, MAX_CONF_LINE_LEN, fp))) {
         u32 len;
 
-        /** Avoid the commented lines */    
+        /** Avoid the commented lines */
         if(buf[0] == '#')
             continue;
 
@@ -933,7 +960,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
             *pOut = '\0';
             break;
         }
-        
+
         len = snprintf(pOut, *plen, "%s ", buf);
         cnt++;
 
@@ -961,7 +988,7 @@ static int qsap_read_mac_address(s8 *presp, u32 *plen)
 
     len = *plen;
 
-    if(eSUCCESS != qsap_read_cfg(fIni, qsap_str[STR_MAC_IN_INI], presp, plen, cmd_list[eCMD_MAC_ADDR])) {
+    if(eSUCCESS != qsap_read_cfg(fIni, qsap_str[STR_MAC_IN_INI], presp, plen, cmd_list[eCMD_MAC_ADDR], GET_ENABLED_ONLY)) {
         LOGE("%s :MAC addr read failure \n",__func__);
         goto end;
     }
@@ -1007,7 +1034,7 @@ static void qsap_read_wmm(s8 *presp, u32 *plen)
     u32 tlen = *plen;
     u32 status;
 
-    if(eSUCCESS != qsap_read_cfg(fIni, qsap_str[STR_WMM_IN_INI], presp, &tlen, cmd_list[eCMD_WMM_STATE])) {    
+    if(eSUCCESS != qsap_read_cfg(fIni, qsap_str[STR_WMM_IN_INI], presp, &tlen, cmd_list[eCMD_WMM_STATE], GET_ENABLED_ONLY)) {
         *plen = snprintf(presp, *plen, "%s", ERR_NOT_SUPPORTED);
         return;
     }
@@ -1030,27 +1057,11 @@ static void qsap_read_wmm(s8 *presp, u32 *plen)
     return;
 }
 
-static void qsap_read_wps_state(s8 *presp, u32 *plen)
-{
-    u32  tlen = *plen;
-    s32  status = ENABLE;
-
-    if(eSUCCESS != qsap_read_cfg(pconffile, cmd_list[eCMD_WPS_STATE], presp, &tlen, NULL)) {
-        /** unable to read the wps configuration, WPS is disabled !*/
-        LOGE("%s :Failed to read wps_state from cfg \n", __func__);
-        status = DISABLE;
-    }
-
-    *plen = snprintf(presp, *plen, "%s %s=%lu", SUCCESS, cmd_list[eCMD_WPS_STATE], status);
-
-    return;    
-}
-
 s8 *qsap_get_config_value(s8 *pfile, s8 *pcmd, s8 *pbuf, u32 *plen)
 {
     s8 *ptr = NULL;
 
-    if(eSUCCESS == qsap_read_cfg(pfile, pcmd, pbuf, (u32 *)plen, NULL)) {
+    if(eSUCCESS == qsap_read_cfg(pfile, pcmd, pbuf, (u32 *)plen, NULL, GET_ENABLED_ONLY)) {
         ptr = strchr(pbuf, '=');
         if(NULL != ptr){
             ptr++;
@@ -1061,6 +1072,26 @@ s8 *qsap_get_config_value(s8 *pfile, s8 *pcmd, s8 *pbuf, u32 *plen)
     }
 
     return ptr;
+}
+
+static void qsap_read_wps_state(s8 *presp, u32 *plen)
+{
+    u32  tlen = *plen;
+    s32  status;
+    s8 *pstate;
+
+    if(NULL == (pstate = qsap_get_config_value(pconffile, cmd_list[eCMD_WPS_STATE], presp, &tlen))) {
+        /** unable to read the wps configuration, WPS is disabled !*/
+        LOGE("%s :Failed to read wps_state from cfg \n", __func__);
+        status = DISABLE;
+    }
+    else {
+        status = (atoi(pstate) == WPS_STATE_ENABLE) ? ENABLE : DISABLE;
+    }
+
+    *plen = snprintf(presp, *plen, "success %s=%ld", cmd_list[eCMD_WPS_STATE], status);
+
+    return;    
 }
 
 /**
@@ -1118,9 +1149,9 @@ int qsap_read_channel(s8 *pfile, s8 *pcmd, s8 *presp, u32 *plen, s8 *pvar)
     s32  chan;
     u32  len = *plen;
 
-    if(eSUCCESS == qsap_read_cfg(pfile, pcmd, presp, plen, pvar)) {
+    if(eSUCCESS == qsap_read_cfg(pfile, pcmd, presp, plen, pvar, GET_ENABLED_ONLY)) {
         pval = strchr(presp, '=');
-        
+
         if(NULL == pval) {
             LOGE("%s :CHAN absent \n", __func__);
             return eERR_CONFIG_PARAM_MISSING;
@@ -1228,6 +1259,37 @@ error:
 
     return;
 }
+
+static void qsap_read_wep_key(s8 *pfile, s8 *pcmd, s8 *presp, u32 *plen, s8 *var)
+{
+    s8 *pwep;
+    s8 *pkey;
+
+    if(eSUCCESS != qsap_read_cfg(pfile, pcmd, presp, plen, var, GET_COMMENTED_VALUE))
+        return;
+
+    pwep = strchr(presp, '=');
+    if(NULL == pwep)
+        return;
+    pwep++;
+
+    if(pwep[0] == '"') {
+        pkey = pwep;
+        pwep++;
+
+        while(*pwep != '\0') {
+            *pkey = *pwep;
+             pkey++;
+             pwep++;
+        }
+        *pkey--;
+        *pkey = '\0';
+        *plen -= 2;
+    }
+
+    return;
+}
+
 /**
  * @brief 
  *       Get the configuration information from the softAP configuration
@@ -1243,15 +1305,24 @@ error:
  *                      [OUT] The length of the response in the buffer, presp
  * @return void
 **/
-static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)    
+static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
 {
     u32 len;
     int status;
+    s8 * pval;
 
     switch(cNum) {
         case eCMD_ENABLE_SOFTAP:
             status = is_softap_enabled();
             *plen = snprintf(presp, *plen, "%s %s=%d", SUCCESS, cmd_list[cNum], status);
+            break;
+
+        case eCMD_WPA_PAIRWISE:
+        case eCMD_RSN_PAIRWISE:
+        case eCMD_DEFAULT_KEY:
+        case eCMD_PASSPHRASE:
+        case eCMD_GTK_TIMEOUT:
+                qsap_read_cfg(pconffile, cmd_list[cNum], presp, plen, NULL, GET_COMMENTED_VALUE);
             break;
 
         case eCMD_SSID:
@@ -1260,17 +1331,8 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
         case eCMD_DTIM_PERIOD:
         case eCMD_HW_MODE:
         case eCMD_AUTH_ALGS:
-        case eCMD_WEP_KEY0:
-        case eCMD_WEP_KEY1:
-        case eCMD_WEP_KEY2:
-        case eCMD_WEP_KEY3:
-        case eCMD_DEFAULT_KEY:
-        case eCMD_PASSPHRASE:
-        case eCMD_WPA_PAIRWISE:
-        case eCMD_RSN_PAIRWISE:
         case eCMD_MAC_ACL:
         case eCMD_WPS_CONFIG_METHOD:
-        case eCMD_GTK_TIMEOUT:
         case eCMD_UUID:
         case eCMD_DEVICE_NAME:
         case eCMD_MANUFACTURER:
@@ -1284,7 +1346,14 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
         case eCMD_MODEL_DESC:
         case eCMD_MODEL_URL:
         case eCMD_UPC:
-                qsap_read_cfg(pconffile, cmd_list[cNum], presp, plen, NULL);
+                qsap_read_cfg(pconffile, cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
+                break;
+
+        case eCMD_WEP_KEY0:
+        case eCMD_WEP_KEY1:
+        case eCMD_WEP_KEY2:
+        case eCMD_WEP_KEY3:
+                qsap_read_wep_key(pconffile, cmd_list[cNum], presp, plen, NULL);
                 break;
 
         case eCMD_CHAN:
@@ -1292,15 +1361,15 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_FRAG_THRESHOLD:
-                qsap_read_cfg(fIni, qsap_str[STR_FRAG_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_FRAG_THRESHOLD]);
+                qsap_read_cfg(fIni, qsap_str[STR_FRAG_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_FRAG_THRESHOLD], GET_ENABLED_ONLY);
                 break;
                 
         case eCMD_REGULATORY_DOMAIN:
-                qsap_read_cfg(fIni, qsap_str[STR_802DOT11D_IN_INI], presp, plen, cmd_list[eCMD_REGULATORY_DOMAIN]);
+                qsap_read_cfg(fIni, qsap_str[STR_802DOT11D_IN_INI], presp, plen, cmd_list[eCMD_REGULATORY_DOMAIN], GET_ENABLED_ONLY);
                 break;
 
         case eCMD_RTS_THRESHOLD:
-                qsap_read_cfg(fIni, qsap_str[STR_RTS_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_RTS_THRESHOLD]);
+                qsap_read_cfg(fIni, qsap_str[STR_RTS_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_RTS_THRESHOLD], GET_ENABLED_ONLY);
                 break;
 
         case eCMD_ALLOW_LIST: /* fall through */
@@ -1327,11 +1396,11 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_PROTECTION_FLAG:
-                qsap_read_cfg(fIni, qsap_str[STR_PROT_FLAG_IN_INI], presp, plen, cmd_list[eCMD_PROTECTION_FLAG]);
+                qsap_read_cfg(fIni, qsap_str[STR_PROT_FLAG_IN_INI], presp, plen, cmd_list[eCMD_PROTECTION_FLAG], GET_ENABLED_ONLY);
                 break;
 
         case eCMD_DATA_RATES:
-                qsap_read_cfg(fIni, qsap_str[STR_DATA_RATE_IN_INI], presp, plen, cmd_list[eCMD_DATA_RATES]);
+                qsap_read_cfg(fIni, qsap_str[STR_DATA_RATE_IN_INI], presp, plen, cmd_list[eCMD_DATA_RATES], GET_ENABLED_ONLY);
                 break;
 
         case eCMD_ASSOC_STA_MACS:
@@ -1339,7 +1408,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_TX_POWER:
-                qsap_read_cfg(fIni, qsap_str[STR_TX_POWER_IN_INI], presp, plen, cmd_list[eCMD_TX_POWER]);
+                qsap_read_cfg(fIni, qsap_str[STR_TX_POWER_IN_INI], presp, plen, cmd_list[eCMD_TX_POWER], GET_ENABLED_ONLY);
                 break;
 
         case eCMD_SDK_VERSION:
@@ -1347,11 +1416,17 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_INTRA_BSS_FORWARD:
-                qsap_read_cfg(fIni, qsap_str[STR_INTRA_BSS_FORWARD_IN_INI], presp, plen, cmd_list[eCMD_INTRA_BSS_FORWARD]);
+                qsap_read_cfg(fIni, qsap_str[STR_INTRA_BSS_FORWARD_IN_INI], presp, plen, cmd_list[eCMD_INTRA_BSS_FORWARD], GET_ENABLED_ONLY);
+
+                pval = strchr(presp, '=');
+                if ( pval != NULL ) {
+                    pval++;
+                    *pval = *pval == '0' ? '1' : '0';
+                }
                 break;
 
         case eCMD_COUNTRY_CODE:
-                qsap_read_cfg(fIni, qsap_str[STR_COUNTRY_CODE_IN_INI], presp, plen, cmd_list[eCMD_COUNTRY_CODE]);
+                qsap_read_cfg(fIni, qsap_str[STR_COUNTRY_CODE_IN_INI], presp, plen, cmd_list[eCMD_COUNTRY_CODE], GET_ENABLED_ONLY);
                 break;
 
         default:
@@ -1435,25 +1510,38 @@ static void qsap_handle_get_request(s8 *pcmd, s8 *presp, u32 *plen)
     
     qsap_get_from_config(cNum, presp, plen);
 
-    return;        
+    return;
 }
 
-static s16 is_valid_wep_key(s8 *pwep)
+static s16 is_valid_wep_key(s8 *pwep, s8 *pkey, s16 len)
 {
     int weplen;
     s16 ret = TRUE;
+    int ascii = FALSE;
+
+    weplen = strlen(pwep);
+   
+    /** Remove the double quotes if any */ 
+    if((pwep[0] == '"') && (pwep[weplen-1] == '"')) {
+        pwep[weplen-1] = '\0';
+        pwep++;
+        weplen -= 2;
+    }
 
     /** The WEP key should be of length 5, 13 or 16 characters
       * or 10, 26, or 32 digits */
-    weplen = strlen(pwep);
     switch(weplen) {
         case WEP_64_KEY_ASCII:
         case WEP_128_KEY_ASCII:
         case WEP_152_KEY_ASCII:
+                weplen--;
                 while(weplen--) {
-                    if(0 == isascii(pwep[weplen]))
+                    if(0 == isascii(pwep[weplen])) {
+                        LOGD("%c not ascii \n", pwep[weplen]);
                         return FALSE;
+                    }
                 }
+                ascii = TRUE;
                 break;
 
         case WEP_64_KEY_HEX:
@@ -1468,29 +1556,36 @@ static s16 is_valid_wep_key(s8 *pwep)
         default:
             ret = FALSE;
     }
+
+    snprintf(pkey, len, (ascii == TRUE) ? "\"%s\"" : "%s", pwep);
+
     return ret;
 }
 
-static s16 wifi_qsap_reset_to_default(void)
+static s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
 {
     FILE *fcfg, *ftmp;
     char buf[MAX_CONF_LINE_LEN];
     int status = eSUCCESS;
 
-    fcfg = fopen(DEFAULT_CONFIG_FILE_PATH, "r");
+    fcfg = fopen(pdefault, "r");
 
     if(NULL == fcfg) {
         LOGE("%s : unable to open file \n", __func__);
         return eERR_FILE_OPEN;
     }
 
-    ftmp = fopen(TMP_FILE, "w");
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pcfgfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
+    ftmp = fopen(buf, "w+");
     if(NULL == ftmp) {
         LOGE("%s : unable to open file \n", __func__);
         fclose(fcfg);
         return eERR_FILE_OPEN;
     }
-    
+
     while(NULL != fgets(buf, MAX_CONF_LINE_LEN, fcfg)) {
         fprintf(ftmp, "%s", buf);
     }
@@ -1498,11 +1593,15 @@ static s16 wifi_qsap_reset_to_default(void)
     fclose(fcfg);
     fclose(ftmp);
 
-    if(eERR_UNKNOWN == rename(TMP_FILE, pconffile))
+    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pcfgfile)) {
+        buf[MAX_CONF_LINE_LEN] = '\0';
+    }
+
+    if(eERR_UNKNOWN == rename(buf, pcfgfile))
         status = eERR_CONF_FILE;
 
     /** Remove the temporary file. Dont care the return value */
-    unlink(TMP_FILE);
+    unlink(buf);
 
     return status;
 }
@@ -1583,7 +1682,7 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
     }
 
     len = RESP_BUF_SIZE;
-    
+
 #define HOSTAPD_RECV_TIMEOUT    (2)
     while(1) {
         timeout.tv_sec = HOSTAPD_RECV_TIMEOUT;
@@ -1639,27 +1738,24 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
 {
     u32 tlen = *plen;
     s32 status;
-    s8  pwps_state[8];
-    s32 cmd, i;
+    s8  pwps_state[MAX_INT_STR+1];
+    s32 i;
 
     /* Enable/disable the following in hostapd.conf
-     * 1. Change the security mode to WPA-WPA2 Mixed
-     * 2. Update wps_state
-     * 3. Update config_methods
-     * 4. Update UPnP related variables
+     * 1. Update the wps_state
+     * 2. Set eap_server=1
+     * 3. Update UPnP related variables
      */
     status = atoi(pVal);
 
-    if(status == ENABLE) {
-        snprintf(pwps_state, 8, "%d", WPS_STATE_ENABLE);
-        cmd = SEC_MODE_WPA_WPA2_PSK;
-    }
-    else {
-        snprintf(pwps_state, 8, "%d", WPS_STATE_DISABLE);
-        cmd = SEC_MODE_NONE;
-    }
-
+    snprintf(pwps_state, MAX_INT_STR, "%d", (status == ENABLE) ? WPS_STATE_ENABLE : WPS_STATE_DISABLE);
+    
     qsap_write_cfg(pconffile, cmd_list[eCMD_WPS_STATE], pwps_state, presp, &tlen, HOSTAPD_CONF_FILE);
+
+    if(eERR_UNKNOWN == qsap_change_cfg(pconffile, cmd_list[eCMD_WPS_STATE], status)) {
+        LOGE("%s: Failed to enable %s\n", __func__, cmd_list[eCMD_WPS_STATE]);
+        goto error;
+    }
 
     snprintf(pwps_state, 8, "%d", ENABLE);
 
@@ -2068,7 +2164,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                     qsap_write_cfg(pconffile, cmd_list[cNum], pVal, presp, plen, HOSTAPD_CONF_FILE);
                 }
                 else {
-                    goto error;    
+                    goto error;
                 }
             }
             else {
@@ -2102,6 +2198,8 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 status = wifi_qsap_load_driver();
                 if(status == eSUCCESS)
                     status = wifi_qsap_start_softap();
+                    if (status != eSUCCESS)
+                        wifi_qsap_unload_driver();
             }
             *plen = snprintf(presp, *plen, "%s", (status==eSUCCESS) ? SUCCESS : "failure Could not enable softap");
             return;
@@ -2167,7 +2265,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 }
             }
 
-            /** TODO: Modify the channel number based on the mode */
             if(status == FALSE)
                 goto error;
 
@@ -2201,7 +2298,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             ulen = MAX_FILE_PATH_LEN;
             if(SEC_MODE_WEP != qsap_read_security_mode(pcfg, filename, &ulen)) {
                 if(eERR_UNKNOWN == qsap_change_cfg(pcfg, cmd_list[cNum], 0)) {
-                    LOGE("%s: CMD_WEP_KEY0 \n", __func__);
+                    LOGE("%s: eCMD_DEFAULT_KEY \n", __func__);
                     goto error;
                 }
             }
@@ -2230,10 +2327,10 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
         case eCMD_WEP_KEY1:
         case eCMD_WEP_KEY2:
         case eCMD_WEP_KEY3:
-            if(FALSE == is_valid_wep_key(pVal))
+            if(FALSE == is_valid_wep_key(pVal, filename, MAX_FILE_PATH_LEN))
                 goto error;
-        
-            qsap_write_cfg(pcfg, cmd_list[cNum], pVal, presp, plen, ini);
+
+            qsap_write_cfg(pcfg, cmd_list[cNum], filename, presp, plen, ini);
 
             /** if the security mode is not WEP, update the WEP features, and
                 do NOT set the WEP security */
@@ -2252,8 +2349,11 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             LOGE("Reset :%ld \n", value);
             if(SAP_RESET_BSS == value) {
                 status = wifi_qsap_stop_softap();
-                if(status == eSUCCESS)
-                    wifi_qsap_start_softap();
+                if(status == eSUCCESS) {
+                    status = wifi_qsap_start_softap();
+                    if (eSUCCESS != status)
+                        wifi_qsap_unload_driver();
+                }
             }
             else if(SAP_RESET_DRIVER_BSS == value){
                 status = wifi_qsap_reload_softap();
@@ -2277,8 +2377,12 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             return;
 
         case eCMD_RESET_TO_DEFAULT:
-            if(eSUCCESS == (status = wifi_qsap_reset_to_default()))
-                status = commit();
+            if(eSUCCESS == (status = wifi_qsap_reset_to_default(pconffile, DEFAULT_CONFIG_FILE_PATH))) {
+                if(eSUCCESS == (status = wifi_qsap_reset_to_default(fIni, DEFAULT_INI_FILE))) {
+                    gIniUpdated = 1;
+                    status = commit();
+                }
+            }
             *plen = snprintf(presp, *plen, "%s", (status ==  eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
             return;
 
@@ -2447,11 +2551,11 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_INTRA_BSS_STATUS(value))
                 goto error;
 
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            snprintf(pVal, MAX_INT_STR, "%d", value ? 0 : 1);
             cNum = STR_INTRA_BSS_FORWARD_IN_INI;
             ini = INI_CONF_FILE;
             break;    
-        
+
         case eCMD_COUNTRY_CODE:
             cNum = STR_COUNTRY_CODE_IN_INI;
             ini = INI_CONF_FILE;

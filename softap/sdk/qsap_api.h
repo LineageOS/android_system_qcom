@@ -76,19 +76,19 @@ enum error_val {
 #define QSAP_SDK_VERSION "1.0"
 
 /** Configuration file name */
-#define CONFIG_FILE "/system/lib/modules/hostapd.conf"
+#define CONFIG_FILE "/data/hostapd/hostapd.conf"
 
 /** Default configuration file path */
-#define DEFAULT_CONFIG_FILE_PATH "/system/lib/modules/hostapd_default.conf"
+#define DEFAULT_CONFIG_FILE_PATH "/persist/qcom/softap/hostapd_default.conf"
 
 /** Ini file */
 #define INI_FILE "/system/etc/firmware/wlan/qcom_cfg.ini"
 
-/** Temporary file name */
-#define TMP_FILE "/system/lib/modules/tmp.qcsoftap.conf"
+/** Default Ini file */
+#define DEFAULT_INI_FILE "/persist/qcom/softap/qcom_cfg_default.ini"
 
 /** SDK control interface path */
-#define SDK_CTRL_IF "/system/lib/modules/softap_sdk_ctrl"
+#define SDK_CTRL_IF "/data/hostapd/softap_sdk_ctrl"
 
 /** Maximum length of the line in the configuration file */
 #define MAX_CONF_LINE_LEN  (156)
@@ -202,6 +202,10 @@ enum error_val {
 #define AUTO_DATA_RATE                   (0)
 #define B_MODE_MAX_DATA_RATE_IDX         (4)
 #define G_ONLY_MODE_MAX_DATA_RATE_IDX    (12)
+
+/** parameters for read config */
+#define GET_COMMENTED_VALUE 1
+#define GET_ENABLED_ONLY    0
 
 /** command request index - in the array Cmd_req[] */
 enum eCmd_req {
