@@ -43,22 +43,24 @@ typedef unsigned long int  u32;
 typedef signed long int    s32;
 
 /** Success and error messages */
-#define SUCCESS                  "success"
-#define ERR_INVALID_ARG          "failure invalid arguments"
-#define ERR_INVALID_PARAM        "failure invalid parameter"
-#define ERR_UNKNOWN              "failure unknown error"
-#define ERR_INVALIDCMD           "failure invalid command"
-#define ERR_INVALIDREQ           "failure invalid request"
-#define ERR_FEATURE_NOT_ENABLED  "failure feature not enabled"
-#define ERR_NOT_SUPPORTED        "failure not supported"
-#define ERR_NOT_READY            "failure not ready"
-#define ERR_RES_UNAVAILABLE      "failure resource unavailable"
+#define SUCCESS                     "success"
+#define ERR_INVALID_ARG             "failure invalid arguments"
+#define ERR_INVALID_PARAM           "failure invalid parameter"
+#define ERR_UNKNOWN                 "failure unknown error"
+#define ERR_INVALIDCMD              "failure invalid command"
+#define ERR_INVALIDREQ              "failure invalid request"
+#define ERR_FEATURE_NOT_ENABLED     "failure feature not enabled"
+#define ERR_NOT_SUPPORTED           "failure not supported"
+#define ERR_NOT_READY               "failure not ready"
+#define ERR_RES_UNAVAILABLE         "failure resource unavailable"
+#define ERR_SOFTAP_NOT_STARTED      "failure softap not started"
 
 /** Error numbers used with the SDK */
 enum error_val {
     eERR_UNKNOWN = -1,
     eSUCCESS = 0,
     eERR_STOP_BSS,
+    eERR_BSS_NOT_STARTED,
     eERR_COMMIT,
     eERR_START_SAP,
     eERR_STOP_SAP,
@@ -69,7 +71,11 @@ enum error_val {
     eERR_SEND_TO_HOSTAPD,
     eERR_CONFIG_PARAM_MISSING,
     eERR_CHAN_READ,
-    eERR_FEATURE_NOT_ENABLED
+    eERR_FEATURE_NOT_ENABLED,
+    eERR_UNLOAD_FAILED_SDIO,
+    eERR_UNLOAD_FAILED_SOFTAP,
+    eERR_LOAD_FAILED_SDIOIF,
+    eERR_LOAD_FAILED_SOFTAP
 };
 
 /** Soft AP SDK version */
@@ -207,6 +213,16 @@ enum error_val {
 #define GET_COMMENTED_VALUE 1
 #define GET_ENABLED_ONLY    0
 
+#define MAX_RESP_LEN 255
+
+/** AP shutoff time */
+#define AP_SHUTOFF_MIN    (0)
+#define AP_SHUTOFF_MAX    (120)
+
+/** AP shutoff time */
+#define AP_ENERGY_DETECT_TH_MIN    (0)
+#define AP_ENERGY_DETECT_TH_MAX    (100)
+
 /** command request index - in the array Cmd_req[] */
 enum eCmd_req {
     eCMD_GET = 0,
@@ -285,6 +301,9 @@ typedef enum esap_cmd {
     eCMD_COUNTRY_CODE        = 53,
     eCMD_INTRA_BSS_FORWARD   = 54,
     eCMD_REGULATORY_DOMAIN   = 55,
+    eCMD_AP_STATISTICS       = 56,
+    eCMD_AP_AUTOSHUTOFF      = 57,
+    eCMD_AP_ENERGY_DETECT_TH = 58,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
@@ -308,6 +327,8 @@ typedef enum esap_str {
     STR_CTRL_INTERFACE           = 14,
     STR_INTERFACE                = 15,
     STR_EAP_SERVER               = 16,
+    STR_AP_AUTOSHUTOFF           = 17,
+    STR_AP_ENERGY_DETECT_TH      = 18,
     eSTR_LAST
 } esap_str_t;
 
@@ -495,10 +516,17 @@ enum eChoose_conf_file {
 /** Validate the 802dot11d state */
 #define IS_VALID_802DOT11D_STATE(x) (((x == ENABLE) || (x == DISABLE)) ? TRUE: FALSE)
 
+/** Validate the AP shutoff time */
+#define IS_VALID_APSHUTOFFTIME(x) (((x >= AP_SHUTOFF_MIN) && (x <= AP_SHUTOFF_MAX)) ? TRUE : FALSE)
+
+/** Validate the AP shutoff time */
+#define IS_VALID_ENERGY_DETECT_TH(x) (((x >= AP_ENERGY_DETECT_TH_MIN) && (x <= AP_ENERGY_DETECT_TH_MAX)) ? TRUE : FALSE)
+
 /** Function declartion */
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen);
 s8 *qsap_get_config_value(s8 *pfile, s8 *pcmd, s8 *pbuf, u32 *plen);
 int qsapsetSoftap(int argc, char *argv[]);
+void qsap_del_ctrl_iface(void);
 
 #if __cplusplus
 };  // extern "C"

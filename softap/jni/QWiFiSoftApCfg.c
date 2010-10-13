@@ -43,6 +43,14 @@ static int    rtnl_fd = -1;
 static char   evt_buf[MAX_EVT_BUF_SIZE];
 static int    evt_len;
 
+static void softap_handle_custom_event(char * buf, int len)
+{
+    if (strncmp(buf, "AUTO-SHUT.indication ", strlen("AUTO-SHUT.indication ")) == 0)
+    {
+        LOGD("EVENT: Custom Event\n");
+        snprintf(evt_buf, sizeof(evt_buf), "105 AP Shutdown");
+    }
+}
 
 static void softap_handle_associated_event(char *mac_addr)
 {
@@ -70,8 +78,7 @@ static void softap_handle_wireless_event(char *atr, int atrlen)
         if (iwe.len <= IW_EV_LCP_LEN)
             break;
 
-        LOGD("Received Wireless Event: cmd=0x%x len=%d",
-                iwe.cmd, iwe.len);
+        LOGD("Received Wireless Event: cmd=0x%x len=%d", iwe.cmd, iwe.len);
 
         switch (iwe.cmd) {
             case IWEVEXPIRED:
@@ -82,6 +89,11 @@ static void softap_handle_wireless_event(char *atr, int atrlen)
             case IWEVREGISTERED:
                 LOGD("EVENT: IWEVREGISTERED\n");
                 softap_handle_associated_event(iwe.u.addr.sa_data);
+                break;
+
+            case IWEVCUSTOM:
+                LOGD("EVENT: Custom Event\n");
+				softap_handle_custom_event(buffer + len + IW_EV_POINT_LEN, iwe.u.data.length);
                 break;
 
             default:

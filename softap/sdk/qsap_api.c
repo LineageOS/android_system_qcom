@@ -48,6 +48,7 @@
 #define QCSAP_IOCTL_GET_CHANNEL       (SIOCIWFIRSTPRIV+9)
 #define QCSAP_IOCTL_ASSOC_STA_MACADDR (SIOCIWFIRSTPRIV+10)
 #define QCSAP_IOCTL_DISASSOC_STA      (SIOCIWFIRSTPRIV+11)
+#define QCSAP_IOCTL_AP_STATS          (SIOCIWFIRSTPRIV+12)
 
 //#define LOG_TAG "QCSDK-"
 
@@ -134,6 +135,9 @@ static s8 *cmd_list[eCMD_LAST] = {
     "country_code",
     "intra_bss_forward",
     "regulatory_domain",
+    "apstat",
+    "auto_shut_off_time",
+    "energy_detect_threshold",
 };
 
 static s8 *qsap_str[eSTR_LAST] = {
@@ -153,7 +157,9 @@ static s8 *qsap_str[eSTR_LAST] = {
     "ieee80211n",
     "ctrl_interface",
     "interface",
-    "eap_server"
+    "eap_server",
+    "gAPAutoShutOff",
+    "gEnablePhyAgcListenMode",
 };
 
 /** Supported operating mode */
@@ -775,7 +781,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     }
 
     if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
+        buf[MAX_CONF_LINE_LEN-1] = '\0';
     }
 
     /** Open a temporary file */
@@ -827,7 +833,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     fclose(ftmp);
 
     if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
+        buf[MAX_CONF_LINE_LEN-1] = '\0';
     }
 
     /** Restore the configuration file */
@@ -1106,6 +1112,10 @@ int qsap_get_operating_channel(s32 *pchan)
     s8 *pif;
     int ret;
 
+    if(ENABLE != is_softap_enabled()) {
+        goto error;
+    }
+
     if(NULL == (pif = qsap_get_config_value(pconffile, qsap_str[STR_INTERFACE], interface, &len))) {
         LOGE("%s :interface error \n", __func__);
         goto error;
@@ -1209,6 +1219,10 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
     u32 recvLen;
     u32 tlen;
 
+    if(ENABLE != is_softap_enabled()) {
+        goto error;
+    }
+
     if(NULL == (pif = qsap_get_config_value(pconffile, qsap_str[STR_INTERFACE], interface, &len))) {
         LOGE("%s :interface error \n", __func__);
         goto error;
@@ -1289,6 +1303,90 @@ static void qsap_read_wep_key(s8 *pfile, s8 *pcmd, s8 *presp, u32 *plen, s8 *var
 
     return;
 }
+
+void qsap_read_ap_stats(s8 *presp, u32 *plen)
+{
+    int sock, ret;
+    struct iwreq wrq;
+    s8 interface[MAX_CONF_LINE_LEN];
+    u32 len = MAX_CONF_LINE_LEN;
+    s8 *pif;
+    s8 *pbuf, *pout;
+    u32 recvLen;
+    u32 tlen;
+
+    if(ENABLE != is_softap_enabled()) {
+        *plen = snprintf(presp, *plen, "%s", ERR_SOFTAP_NOT_STARTED);
+        return;
+    }
+
+    if(NULL == (pif = qsap_get_config_value(pconffile, qsap_str[STR_INTERFACE], interface, &len))) {
+        LOGE("%s :interface error \n", __func__);
+        goto error;
+    }
+    interface[len] = '\0';
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock < 0) {
+        LOGE("%s :socket failure \n", __func__);
+        goto error;
+    }
+
+    pbuf = (s8 *)malloc(MAX_RESP_LEN);
+    if(NULL == pbuf) {
+        LOGE("%s :No memory \n", __func__);
+        goto error;
+    }
+
+    strncpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
+    wrq.u.data.length = MAX_RESP_LEN;
+    wrq.u.data.pointer = (void *)pbuf;
+    wrq.u.data.flags = 0;
+
+    ret = ioctl(sock, QCSAP_IOCTL_AP_STATS, &wrq);
+    if(ret < 0) {
+        LOGE("%s :ioctl failure \n", __func__);
+        free(pbuf);
+        goto error;
+    }
+
+    if(*plen == (recvLen = snprintf(presp, *plen, "%s %s=%s", SUCCESS, cmd_list[eCMD_AP_STATISTICS], pbuf))){
+        presp[recvLen-1] = '\0';
+    }
+
+    *plen = recvLen;
+
+    free(pbuf);
+
+    return;
+
+error:
+    *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+
+    return;
+}
+
+void qsap_read_autoshutoff(s8 *presp, u32 *plen)
+{
+    u32 tlen, time = 0;
+    s8 *ptime;
+
+    tlen = *plen;
+
+    if(NULL == (ptime = qsap_get_config_value(fIni, qsap_str[STR_AP_AUTOSHUTOFF], presp, &tlen))) {
+        /** unable to read the AP shutoff time */
+        LOGE("%s :Failed to read AP shutoff time\n", __func__);
+    }
+    else {
+        time = atoi(ptime);
+        time = time / 60; /** Convert seconds to minutes */
+    }
+
+    *plen = snprintf(presp, *plen, "success %s=%ld", cmd_list[eCMD_AP_AUTOSHUTOFF], time);
+
+    return;
+}
+
 
 /**
  * @brief 
@@ -1427,6 +1525,18 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
 
         case eCMD_COUNTRY_CODE:
                 qsap_read_cfg(fIni, qsap_str[STR_COUNTRY_CODE_IN_INI], presp, plen, cmd_list[eCMD_COUNTRY_CODE], GET_ENABLED_ONLY);
+                break;
+
+        case eCMD_AP_STATISTICS:
+                qsap_read_ap_stats(presp, plen); 
+                break;
+
+        case eCMD_AP_AUTOSHUTOFF:
+		    qsap_read_autoshutoff(presp, plen);
+            break;
+
+        case eCMD_AP_ENERGY_DETECT_TH:
+                qsap_read_cfg(fIni, qsap_str[STR_AP_ENERGY_DETECT_TH], presp, plen, cmd_list[eCMD_AP_ENERGY_DETECT_TH], GET_ENABLED_ONLY);
                 break;
 
         default:
@@ -1576,7 +1686,7 @@ static s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
     }
 
     if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pcfgfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
+        buf[MAX_CONF_LINE_LEN-1] = '\0';
     }
 
     ftmp = fopen(buf, "w+");
@@ -1594,7 +1704,7 @@ static s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
     fclose(ftmp);
 
     if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pcfgfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
+        buf[MAX_CONF_LINE_LEN-1] = '\0';
     }
 
     if(eERR_UNKNOWN == rename(buf, pcfgfile))
@@ -1607,6 +1717,39 @@ static s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
 }
 
 #define CTRL_IFACE_PATH_LEN   (128)
+
+void qsap_del_ctrl_iface(void)
+{
+    u32 len;
+    s8 dst_path[CTRL_IFACE_PATH_LEN], *pcif, *pif;
+    s8 interface[64];
+    s8 path[CTRL_IFACE_PATH_LEN + 64];
+
+    len = CTRL_IFACE_PATH_LEN;
+
+    if(NULL == (pcif = qsap_get_config_value(pconffile, qsap_str[STR_CTRL_INTERFACE], dst_path, &len))) {
+        LOGE("%s :ctrl_iface path error \n", __func__);
+        goto error;
+    }
+
+    len = 64;
+
+    if(NULL == (pif = qsap_get_config_value(pconffile, qsap_str[STR_INTERFACE], interface, &len))) {
+        LOGE("%s :interface error \n", __func__);
+        goto error;
+    }
+
+    if((int)sizeof(path) <= snprintf(path, sizeof(path)-1, "%s/%s", pcif, pif)) {
+        LOGE("Iface path : error, %s \n", path);
+        goto error;
+    }
+
+    unlink(path);
+
+error:
+    return;
+}
+
 static int qsap_send_cmd_to_hostapd(s8 *pcmd)
 {
     int sock;
@@ -1894,6 +2037,10 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
     s8 pbuf[MAX_CONF_LINE_LEN];
     u32 len = MAX_CONF_LINE_LEN;
     s8 *pif;
+
+    if(ENABLE != is_softap_enabled()) {
+        goto end;
+    }
 
     if(NULL == (pif = qsap_get_config_value(pconffile, qsap_str[STR_INTERFACE], pbuf, &len))) {
         LOGE("%s :interface error \n", __func__);
@@ -2558,6 +2705,26 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
 
         case eCMD_COUNTRY_CODE:
             cNum = STR_COUNTRY_CODE_IN_INI;
+            ini = INI_CONF_FILE;
+            break;
+
+        case eCMD_AP_AUTOSHUTOFF:
+            value = atoi(pVal);
+            if(TRUE != IS_VALID_APSHUTOFFTIME(value))
+                goto error;
+
+            snprintf(pVal, MAX_INT_STR, "%ld", value*60);
+            cNum = STR_AP_AUTOSHUTOFF;
+            ini = INI_CONF_FILE;
+            break;
+
+        case eCMD_AP_ENERGY_DETECT_TH:
+            value = atoi(pVal);
+            if(TRUE != IS_VALID_ENERGY_DETECT_TH(value))
+                goto error;
+
+            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            cNum = STR_AP_ENERGY_DETECT_TH;
             ini = INI_CONF_FILE;
             break;
 

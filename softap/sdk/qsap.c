@@ -191,6 +191,7 @@ s32 wifi_qsap_load_driver(void)
 
     if ( ret != 0 ) {
         LOGE("init_module failed sdioif\n");
+        ret = eERR_LOAD_FAILED_SDIOIF;
         goto end;
     }
 
@@ -199,11 +200,20 @@ s32 wifi_qsap_load_driver(void)
     ret = insmod(WIFI_DRIVER_MODULE_PATH, WIFI_DRIVER_MODULE_ARG, WIFI_DRIVER_MODULE_NAME " ");
 
     if ( ret != 0 ) {
+        if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
+            if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
+                LOGE("Unable to unload the station mode librasdioif driver\n");
+            }
+        }
         LOGE("init_module failed libra_softap\n");
-        goto end;
+        ret = eERR_LOAD_FAILED_SOFTAP;
+		goto end;
     }
 
     sched_yield();
+    
+	ret = eSUCCESS;
+
 end:
     if(system(SDIO_POLLING_OFF)) {
         LOGE("Could not turn off the polling...");
@@ -248,7 +258,7 @@ end:
 
 s32 wifi_qsap_unload_driver()
 {
-    s32 ret = 0;
+    s32 ret = eSUCCESS;
 
     if(system(SDIO_POLLING_ON)) {
         LOGE("Could not turn on the polling...");
@@ -257,7 +267,7 @@ s32 wifi_qsap_unload_driver()
     if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
         if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the libra_softap driver\n");
-            ret = 1;
+            ret = eERR_UNLOAD_FAILED_SOFTAP;
             goto end;
         }
     }
@@ -267,7 +277,7 @@ s32 wifi_qsap_unload_driver()
     if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
         if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the librasdioif driver\n");
-            ret = 1;
+            ret = eERR_UNLOAD_FAILED_SDIO;
             goto end;
         }
     }
@@ -276,7 +286,7 @@ end:
         LOGE("Could not turn off the polling...");
     }
 
-    return 0;
+    return ret;
 }
 
 s32 wifi_qsap_stop_bss(void)
@@ -290,6 +300,11 @@ s32 wifi_qsap_stop_bss(void)
     s32 len = 128;
     struct iwreq wrq;
     struct iw_priv_args *priv_ptr;
+
+    if(ENABLE != is_softap_enabled()) {
+        ret = eERR_BSS_NOT_STARTED;
+        return ret;
+    }
 
     if(NULL == (iface = qsap_get_config_value(CONFIG_FILE, "interface", interface, (u32*)&len))) {
         LOGE("%s :interface error \n", __func__);
@@ -348,7 +363,7 @@ s32 commit(void)
 
     if ( is_softap_enabled() ) {
         /** Stop BSS */
-        if(eSUCCESS != wifi_qsap_stop_bss()) {
+        if(eSUCCESS != (ret = wifi_qsap_stop_bss())) {
             LOGE("%s: stop bss failed \n", __func__);
             return ret;
         }
@@ -372,6 +387,11 @@ s32 wifi_qsap_start_softap()
 
     LOGD("Starting Soft AP...\n");
 
+    /* Delete control interface if it was left over because of previous crash */
+    if ( !is_softap_enabled() ) {
+        qsap_del_ctrl_iface();
+    }
+
     while(--retry ) {
         /** Stop hostapd */
         if(0 != property_set("ctl.start", "hostapd")) {
@@ -393,18 +413,20 @@ s32 wifi_qsap_start_softap()
 
 s32 wifi_qsap_stop_softap()
 {
+    s32 ret = eSUCCESS;
+
     if ( is_softap_enabled() ) {
         LOGD("Stopping BSS ..... ");
 
         /** Stop the BSS */
-        if (eSUCCESS != wifi_qsap_stop_bss()) {
+        if (eSUCCESS != (ret = wifi_qsap_stop_bss()) ) {
             LOGE("failed \n");
-            return eERR_STOP_SAP;
+            return ret;
         }
         sleep(1);
     }
 
-    return eSUCCESS;
+    return ret;
 }
 
 s32 wifi_qsap_reload_softap()
@@ -412,23 +434,23 @@ s32 wifi_qsap_reload_softap()
     s32 ret = eERR_RELOAD_SAP;
 
     /** SDK API to reload the firmware */
-    if (eSUCCESS != wifi_qsap_stop_softap()) {
+    if (eSUCCESS != (ret = wifi_qsap_stop_softap())) {
         return ret;
     }
 
-    if (eSUCCESS != wifi_qsap_unload_driver()) {
+    if (eSUCCESS != (ret = wifi_qsap_unload_driver())) {
         return ret;
     }
 
     usleep(500000);
 
-    if (eSUCCESS != wifi_qsap_load_driver()) {
+    if (eSUCCESS != (ret = wifi_qsap_load_driver())) {
         return ret;
     }
 
     sleep(1);
 
-    if (eSUCCESS != wifi_qsap_start_softap()) {
+    if (eSUCCESS != (ret = wifi_qsap_start_softap())) {
         wifi_qsap_unload_driver();
         return ret;
     }
