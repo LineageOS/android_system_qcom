@@ -87,6 +87,8 @@
 extern int init_module(const char *name, u32, const s8 *);
 extern int delete_module(const char *name, int);
 
+extern struct Command qsap_str[];
+
 static s32 check_driver_loaded( const s8 * tag)
 {
     FILE *proc;
@@ -306,7 +308,7 @@ s32 wifi_qsap_stop_bss(void)
         return ret;
     }
 
-    if(NULL == (iface = qsap_get_config_value(CONFIG_FILE, "interface", interface, (u32*)&len))) {
+    if(NULL == (iface = qsap_get_config_value(CONFIG_FILE, &qsap_str[STR_INTERFACE], interface, (u32*)&len))) {
         LOGE("%s :interface error \n", __func__);
         return ret;
     }
@@ -384,15 +386,24 @@ s32 commit(void)
 s32 wifi_qsap_start_softap()
 {
     s32    retry = 4;
+    FILE * fp;
 
     LOGD("Starting Soft AP...\n");
+
+    /* Check if configuration files are present, if not create the default files */
+    check_for_configuration_files();
 
     /* Delete control interface if it was left over because of previous crash */
     if ( !is_softap_enabled() ) {
         qsap_del_ctrl_iface();
     }
 
-    while(--retry ) {
+    while(retry--) {
+        /* May be the configuration file is corrupted or not available, */
+        /* copy the default configuration file                          */
+        if ( retry == 1 )
+            wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
+
         /** Stop hostapd */
         if(0 != property_set("ctl.start", "hostapd")) {
             LOGE("failed \n");

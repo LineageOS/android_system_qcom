@@ -78,14 +78,17 @@ enum error_val {
     eERR_LOAD_FAILED_SOFTAP
 };
 
-/** Soft AP SDK version */
-#define QSAP_SDK_VERSION "1.0"
-
 /** Configuration file name */
 #define CONFIG_FILE "/data/hostapd/hostapd.conf"
 
 /** Default configuration file path */
 #define DEFAULT_CONFIG_FILE_PATH "/persist/qcom/softap/hostapd_default.conf"
+
+/** Accept list file name */
+#define ACCEPT_LIST_FILE "/data/hostapd/hostapd.accept"
+
+/** Deny list file name */
+#define DENY_LIST_FILE "/data/hostapd/hostapd.deny"
 
 /** Ini file */
 #define INI_FILE "/system/etc/firmware/wlan/qcom_cfg.ini"
@@ -130,12 +133,6 @@ enum error_val {
 #define DTIM_PERIOD_MIN    (1)
 #define DTIM_PERIOD_MAX    (255)
 
-/** RTS threshold 1 to 2347 */
-#define RTS_THRESHOLD_MAX   (2347)
-
-/** Fragmentation threshold 256 to 2346 */
-#define FRAG_THRESHOLD_MAX   (2346)
-
 /** WEP key lengths in ASCII and hex */
 #define WEP_64_KEY_ASCII  (5)
 #define WEP_64_KEY_HEX    (10)
@@ -153,10 +150,12 @@ enum error_val {
 #define AUTO_CHANNEL    (0)
 #define BG_MAX_CHANNEL  (11)
 
+/** Fragmentation threshold 256 to 2346 */
 #define FRAG_THRESHOLD_MIN  (256)
 #define FRAG_THRESHOLD_MAX  (2346)
 
-#define RTS_THRESHOLD_MIN   (0)
+/** RTS threshold 1 to 2347 */
+#define RTS_THRESHOLD_MIN   (1)
 #define RTS_THRESHOLD_MAX   (2347)
 
 #define MIN_UUID_LEN   (1)
@@ -221,7 +220,7 @@ enum error_val {
 
 /** AP shutoff time */
 #define AP_ENERGY_DETECT_TH_MIN    (0)
-#define AP_ENERGY_DETECT_TH_MAX    (100)
+#define AP_ENERGY_DETECT_TH_MAX    (9)
 
 /** command request index - in the array Cmd_req[] */
 enum eCmd_req {
@@ -395,6 +394,7 @@ enum ap_reset {
 };
 
 enum wmm_state {
+    WMM_AUTO_IN_INI = 0,
     WMM_ENABLED_IN_INI = 1,
     WMM_DISABLED_IN_INI = 2
 };
@@ -414,6 +414,12 @@ enum wps_config {
 enum eChoose_conf_file {
     HOSTAPD_CONF_FILE = 0,
     INI_CONF_FILE = 1
+};
+
+struct Command
+{
+    s8  * name;
+    s8  * default_value;
 };
 
 /** Validate enable / disable softap */
@@ -448,7 +454,7 @@ enum eChoose_conf_file {
                     (!strcmp(x, "TKIP CCMP")) || (!strcmp(x, "CCMP TKIP"))) ? TRUE : FALSE)
 
 /** Validate the WMM status */
-#define IS_VALID_WMM_STATE(x) (((x == ENABLE) || (x == DISABLE)) ? TRUE: FALSE)
+#define IS_VALID_WMM_STATE(x) (((x >= WMM_AUTO_IN_INI) && (x <= WMM_DISABLED_IN_INI)) ? TRUE: FALSE)
 
 /** Validate the WPS status */
 #define IS_VALID_WPS_STATE(x) (((x == ENABLE) || (x == DISABLE)) ? TRUE: FALSE)
@@ -520,13 +526,15 @@ enum eChoose_conf_file {
 #define IS_VALID_APSHUTOFFTIME(x) (((x >= AP_SHUTOFF_MIN) && (x <= AP_SHUTOFF_MAX)) ? TRUE : FALSE)
 
 /** Validate the AP shutoff time */
-#define IS_VALID_ENERGY_DETECT_TH(x) (((x >= AP_ENERGY_DETECT_TH_MIN) && (x <= AP_ENERGY_DETECT_TH_MAX)) ? TRUE : FALSE)
+#define IS_VALID_ENERGY_DETECT_TH(x) ((((x >= AP_ENERGY_DETECT_TH_MIN) && (x <= AP_ENERGY_DETECT_TH_MAX)) ||( x == 128)) ? TRUE : FALSE)
 
 /** Function declartion */
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen);
-s8 *qsap_get_config_value(s8 *pfile, s8 *pcmd, s8 *pbuf, u32 *plen);
+s8 *qsap_get_config_value(s8 *pfile, struct Command *pcmd, s8 *pbuf, u32 *plen);
 int qsapsetSoftap(int argc, char *argv[]);
 void qsap_del_ctrl_iface(void);
+s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault);
+void check_for_configuration_files(void);
 
 #if __cplusplus
 };  // extern "C"

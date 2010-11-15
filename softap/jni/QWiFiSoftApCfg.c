@@ -348,8 +348,7 @@ JNIEXPORT jstring JNICALL
                 goto end;
             }
 
-            LOGW("netd might have crashed, wait for it to "
-                    "start back\n");
+            LOGW("Unable to connect to netd, retrying ...\n");
             sleep(1);
         } else {
             break;
