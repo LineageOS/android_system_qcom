@@ -224,6 +224,36 @@ end:
     return ret;
 }
 
+
+void qsap_send_module_down_indication(void)
+{
+    int s, ret;
+    struct iwreq wrq;
+
+    /*
+     * If the driver is loaded, ask it to broadcast a netlink message
+     * that it will be closing, so listeners can close their sockets.
+     *
+     */
+
+
+     /* Equivalent to: iwpriv wlan0 sendModuleInd */
+     if ((s = socket(PF_INET, SOCK_DGRAM, 0)) >= 0) {
+        strncpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
+        wrq.u.data.length = 0; /* No Set arguments */
+        wrq.u.mode = 5; /* WE_MODULE_DOWN_IND sub-command */
+        ret = ioctl(s, (SIOCIWFIRSTPRIV + 1), &wrq);
+        close(s);
+        if (ret < 0 ) {
+            LOGE("ioctl failed: %s", strerror(errno));
+        }
+        sched_yield();
+     }
+     else {
+        LOGE("Socket open failed: %s", strerror(errno));
+     }
+}
+
 s32 wifi_qsap_unload_wifi_sta_driver(void)
 {
     s32    ret = 0;
@@ -233,6 +263,7 @@ s32 wifi_qsap_unload_wifi_sta_driver(void)
     }
 
     if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
+        qsap_send_module_down_indication();
         if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the station mode wifi driver...\n");
             ret = 1;
@@ -267,6 +298,7 @@ s32 wifi_qsap_unload_driver()
     }
 
     if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
+        qsap_send_module_down_indication();
         if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the libra_softap driver\n");
             ret = eERR_UNLOAD_FAILED_SOFTAP;

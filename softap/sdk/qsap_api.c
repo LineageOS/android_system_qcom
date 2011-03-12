@@ -1849,11 +1849,14 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
                 LOGE("Command failed in hostapd \n");
                 goto close_ret;
             }
+            else {
+                break;
+            }
         }
         else {
             LOGE("%s: Select failed \n", __func__);
             goto close_ret;
-        }    
+        }
     }
 
     ret = eSUCCESS;
@@ -2516,8 +2519,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
         case eCMD_RESET_TO_DEFAULT:
             if(eSUCCESS == (status = wifi_qsap_reset_to_default(pconffile, DEFAULT_CONFIG_FILE_PATH))) {
                 if(eSUCCESS == (status = wifi_qsap_reset_to_default(fIni, DEFAULT_INI_FILE))) {
-                    gIniUpdated = 1;
-                    status = commit();
+                    status = wifi_qsap_reload_softap();
                 }
             }
             *plen = snprintf(presp, *plen, "%s", (status ==  eSUCCESS) ? SUCCESS : ERR_UNKNOWN);

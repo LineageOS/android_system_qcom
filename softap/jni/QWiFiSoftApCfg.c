@@ -35,7 +35,7 @@
         int rc; \
         rc = snprintf(resp, sizeof(resp), "failure %s:%s",msg, code); \
         if ( rc == sizeof(resp)) resp[sizeof(resp)-1] = 0; \
-            LOGE("%s", resp); \
+            LOGE("%s",resp); \
     }
 
 static struct sockaddr_nl    rtnl_local;
