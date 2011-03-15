@@ -9,6 +9,8 @@ LOCAL_SRC_FILES := QWiFiSoftApCfg.c
 
 LOCAL_MODULE := libQWiFiSoftApCfg
 
+LOCAL_MODULE_TAGS := optional
+
 LOCAL_C_INCLUDES := $(KERNEL_HEADERS) \
                     $(JNI_H_INCLUDE)
 
