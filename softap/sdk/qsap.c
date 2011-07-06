@@ -189,22 +189,26 @@ s32 wifi_qsap_load_driver(void)
         LOGE("Could not turn on the polling...");
     }
 
-    ret = insmod(WIFI_SDIO_IF_DRIVER_MODULE_PATH, WIFI_SDIO_IF_DRIVER_MODULE_ARG, WIFI_SDIO_IF_DRIVER_MODULE_NAME " ");
+    if (sizeof(WIFI_SDIO_IF_DRIVER_MODULE_PATH) > 0) {
+       ret = insmod(WIFI_SDIO_IF_DRIVER_MODULE_PATH, WIFI_SDIO_IF_DRIVER_MODULE_ARG, WIFI_SDIO_IF_DRIVER_MODULE_NAME " ");
 
-    if ( ret != 0 ) {
-        LOGE("init_module failed sdioif\n");
-        ret = eERR_LOAD_FAILED_SDIOIF;
-        goto end;
+       if ( ret != 0 ) {
+          LOGE("init_module failed sdioif\n");
+          ret = eERR_LOAD_FAILED_SDIOIF;
+          goto end;
+      }
+
+      sched_yield();
     }
-
-    sched_yield();
 
     ret = insmod(WIFI_DRIVER_MODULE_PATH, WIFI_DRIVER_MODULE_ARG, WIFI_DRIVER_MODULE_NAME " ");
 
     if ( ret != 0 ) {
-        if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
-            if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
-                LOGE("Unable to unload the station mode librasdioif driver\n");
+        if (sizeof(WIFI_SDIO_IF_DRIVER_MODULE_PATH) > 0) {
+            if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
+                    if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
+                        LOGE("Unable to unload the station mode librasdioif driver\n");
+              }
             }
         }
         LOGE("init_module failed libra_softap\n");
@@ -243,10 +247,14 @@ void qsap_send_module_down_indication(void)
         wrq.u.data.length = 0; /* No Set arguments */
         wrq.u.mode = 5; /* WE_MODULE_DOWN_IND sub-command */
         ret = ioctl(s, (SIOCIWFIRSTPRIV + 1), &wrq);
-        close(s);
         if (ret < 0 ) {
-            LOGE("ioctl failed: %s", strerror(errno));
+            strncpy(wrq.ifr_name, "softap.0", IFNAMSIZ);
+            ret = ioctl(s, (SIOCIWFIRSTPRIV + 1), &wrq);
+            if (ret < 0 ) {
+               LOGE("ioctl failed: %s", strerror(errno));
+            }
         }
+        close(s);
         sched_yield();
      }
      else {
