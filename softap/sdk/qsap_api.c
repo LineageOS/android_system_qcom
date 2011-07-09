@@ -2084,9 +2084,9 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         return eERR_UNKNOWN;
     }
 
-    /** If the operating mode is NOT 'B' and the channel to be set is 12, 13 or 14
+    /** If the operating mode is NOT 'B' and the channel to be set is  14
       * then change the operating mode to 'N' mode */
-    if(strcmp(hw_mode[HW_MODE_B], pcfgval) && (channel > 11)) {
+    if(strcmp(hw_mode[HW_MODE_B], pcfgval) && (channel > 13)) {
         /** Change the operating mode to 'B' */
         ulen = *tlen;
         if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_B], tbuf, &ulen, HOSTAPD_CONF_FILE)) {
