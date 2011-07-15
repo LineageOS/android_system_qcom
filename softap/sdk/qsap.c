@@ -66,23 +66,26 @@
 #define WIFI_DRIVER_MODULE_NAME         "wlan"
 #endif
 
-#ifndef WIFI_SDIO_IF_DRIVER_MODULE_PATH
-#define WIFI_SDIO_IF_DRIVER_MODULE_PATH "/system/lib/modules/librasdioif.ko"
-#endif
-
-#ifndef WIFI_SDIO_IF_DRIVER_MODULE_NAME
-#define WIFI_SDIO_IF_DRIVER_MODULE_NAME "librasdioif"
-#endif
-
-#ifndef WIFI_SDIO_IF_DRIVER_MODULE_ARG 
-#define WIFI_SDIO_IF_DRIVER_MODULE_ARG  ""
-#endif
-
 #ifdef WIFI_DRIVER_MODULE_ARG
 #undef WIFI_DRIVER_MODULE_ARG
 #endif
 
 #define WIFI_DRIVER_MODULE_ARG          "con_mode=1"
+
+/* WIFI_SDIO_IF_DRIVER_MODULE_NAME must be defined if sdioif driver required */
+#ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
+
+#ifndef WIFI_SDIO_IF_DRIVER_MODULE_PATH
+#define WIFI_SDIO_IF_DRIVER_MODULE_PATH "/system/lib/modules/librasdioif.ko"
+#endif
+
+
+#ifndef WIFI_SDIO_IF_DRIVER_MODULE_ARG 
+#define WIFI_SDIO_IF_DRIVER_MODULE_ARG  ""
+#endif
+
+#endif
+
 
 extern int init_module(const char *name, u32, const s8 *);
 extern int delete_module(const char *name, int);
@@ -189,28 +192,28 @@ s32 wifi_qsap_load_driver(void)
         LOGE("Could not turn on the polling...");
     }
 
-    if (sizeof(WIFI_SDIO_IF_DRIVER_MODULE_PATH) > 0) {
-       ret = insmod(WIFI_SDIO_IF_DRIVER_MODULE_PATH, WIFI_SDIO_IF_DRIVER_MODULE_ARG, WIFI_SDIO_IF_DRIVER_MODULE_NAME " ");
+#ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
+    ret = insmod(WIFI_SDIO_IF_DRIVER_MODULE_PATH, WIFI_SDIO_IF_DRIVER_MODULE_ARG, WIFI_SDIO_IF_DRIVER_MODULE_NAME " ");
 
-       if ( ret != 0 ) {
-          LOGE("init_module failed sdioif\n");
-          ret = eERR_LOAD_FAILED_SDIOIF;
-          goto end;
-      }
-
-      sched_yield();
+    if ( ret != 0 ) {
+        LOGE("init_module failed sdioif\n");
+        ret = eERR_LOAD_FAILED_SDIOIF;
+        goto end;
     }
+
+    sched_yield();
+#endif
 
     ret = insmod(WIFI_DRIVER_MODULE_PATH, WIFI_DRIVER_MODULE_ARG, WIFI_DRIVER_MODULE_NAME " ");
 
     if ( ret != 0 ) {
-        if (sizeof(WIFI_SDIO_IF_DRIVER_MODULE_PATH) > 0) {
-            if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
-                    if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
-                        LOGE("Unable to unload the station mode librasdioif driver\n");
-              }
+#ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
+        if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
+            if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
+                LOGE("Unable to unload the station mode librasdioif driver\n");
             }
         }
+#endif
         LOGE("init_module failed libra_softap\n");
         ret = eERR_LOAD_FAILED_SOFTAP;
 		goto end;
@@ -281,6 +284,7 @@ s32 wifi_qsap_unload_wifi_sta_driver(void)
 
     sched_yield();
 
+#ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
     if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
         if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the station mode librasdioif driver\n");
@@ -288,6 +292,7 @@ s32 wifi_qsap_unload_wifi_sta_driver(void)
             goto end;
         }
     }
+#endif
 
 end:
     if(system(SDIO_POLLING_OFF)) {
@@ -316,6 +321,7 @@ s32 wifi_qsap_unload_driver()
 
     sched_yield();
 
+#ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
     if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
         if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
             LOGE("Unable to unload the librasdioif driver\n");
@@ -323,6 +329,8 @@ s32 wifi_qsap_unload_driver()
             goto end;
         }
     }
+#endif
+
 end:
     if(system(SDIO_POLLING_OFF)) {
         LOGE("Could not turn off the polling...");
