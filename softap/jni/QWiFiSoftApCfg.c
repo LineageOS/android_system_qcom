@@ -313,7 +313,8 @@ JNIEXPORT jstring JNICALL
     const char *pcmd;
     char       cmd[MAX_CMD_SIZE];
     char       resp[MAX_RESP_SIZE];
-    int        sock, rc;
+    int        sock = -1;
+    int        rc;
     int        done = 0;
     char       code[32] = {0};
     int        connect_retry;
@@ -399,6 +400,11 @@ JNIEXPORT jstring JNICALL
 
 end:
     (*env)->ReleaseStringUTFChars(env, jcmd, pcmd);
+
+    if( sock >= 0 ){
+        close(sock);
+        sock = -1;
+    }
 
     return (*env)->NewStringUTF(env, resp);
 }
