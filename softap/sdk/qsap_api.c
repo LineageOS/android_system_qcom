@@ -1132,12 +1132,14 @@ int qsap_get_operating_channel(s32 *pchan)
     ret = ioctl(sock, QCSAP_IOCTL_GET_CHANNEL, &wrq);
     if(ret < 0) {
         LOGE("%s: ioctl failure \n",__func__);
+        close(sock);
         goto error;
     }
 
     LOGE("Recv len :%d \n", wrq.u.data.length);
 
     LOGE("Operating channel :%ld \n", *pchan);
+    close(sock);
     return eSUCCESS;
 
 error:
@@ -1231,6 +1233,7 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
     pbuf = (s8 *)malloc((MAX_STA_ALLOWED * 6) + 8);
     if(NULL == pbuf) {
         LOGE("%s :No memory \n", __func__);
+        close(sock);
         goto error;
     }
 
@@ -1245,6 +1248,7 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
     if(ret < 0) {
         LOGE("%s :ioctl failure \n", __func__);
         free(pbuf);
+        close(sock);
         goto error;
     }
 
@@ -1259,6 +1263,7 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
     *plen = len + tlen;
     
     free(pbuf);
+    close(sock);
 
     return;
 error:
@@ -1328,6 +1333,7 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
     pbuf = (s8 *)malloc(MAX_RESP_LEN);
     if(NULL == pbuf) {
         LOGE("%s :No memory \n", __func__);
+        close(sock);
         goto error;
     }
 
@@ -1340,6 +1346,7 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
     if(ret < 0) {
         LOGE("%s :ioctl failure \n", __func__);
         free(pbuf);
+        close(sock);
         goto error;
     }
 
@@ -1350,7 +1357,7 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
     *plen = recvLen;
 
     free(pbuf);
-
+    close(sock);
     return;
 
 error:
@@ -2052,6 +2059,7 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
     
     if(TRUE != qsap_get_mac_in_bytes(pVal, pbuf)) {
         LOGE("%s: Invalid input \n", __func__);
+        close(sock);
         goto end;    
     }
 
@@ -2063,6 +2071,7 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
     if(ret < 0) {
         LOGE("%s: ioctl failure \n", __func__);
     }
+    close(sock);
 
 end:
     *plen = snprintf(presp, *plen, "%s", (ret == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
