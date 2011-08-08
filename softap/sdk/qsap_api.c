@@ -2105,7 +2105,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
 
         ulen = *tlen;
         snprintf(schan, MAX_INT_STR, "%d", AUTO_DATA_RATE);
-        if(eSUCCESS != qsap_write_cfg(fIni, &qsap_str[STR_DATA_RATE_IN_INI], schan, tbuf, &ulen, HOSTAPD_CONF_FILE)) {
+        if(eSUCCESS != qsap_write_cfg(fIni, &qsap_str[STR_DATA_RATE_IN_INI], schan, tbuf, &ulen, INI_CONF_FILE)) {
             LOGE("%s :Unable to set to auto data rate \n", __func__);
             return eERR_UNKNOWN;
         }
