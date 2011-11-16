@@ -446,6 +446,9 @@ s32 wifi_qsap_start_softap()
         qsap_del_ctrl_iface();
     }
 
+    /* Ensure correct path for ini file name */
+    qsap_set_ini_filename();
+
     while(retry--) {
         /* May be the configuration file is corrupted or not available, */
         /* copy the default configuration file                          */

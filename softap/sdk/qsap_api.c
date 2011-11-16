@@ -171,6 +171,7 @@ char *hw_mode[HW_MODE_UNKNOWN] = {
 /** configuration file path */
 char *pconffile = CONFIG_FILE; 
 char *fIni = INI_FILE;
+s8 ini_file[64] = {0};
 
 /**
  * @brief
@@ -2937,5 +2938,15 @@ void check_for_configuration_files(void)
         fclose(fp);
     }
 
+    return;
+}
+
+void qsap_set_ini_filename(void)
+{
+    if (property_get("wlan.driver.config", ini_file, NULL)) {
+        fIni = ini_file;
+        LOGE("INI FILE PROP PRESENT %s\n", fIni);
+    } else
+        LOGE("INI FILE PROP NOT PRESENT: Use default path %s\n", fIni);
     return;
 }

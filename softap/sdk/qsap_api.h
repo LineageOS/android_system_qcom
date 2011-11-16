@@ -535,6 +535,7 @@ int qsapsetSoftap(int argc, char *argv[]);
 void qsap_del_ctrl_iface(void);
 s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault);
 void check_for_configuration_files(void);
+void qsap_set_ini_filename(void);
 
 #if __cplusplus
 };  // extern "C"
