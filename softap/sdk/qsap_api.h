@@ -79,7 +79,7 @@ enum error_val {
 };
 
 /** Configuration file name */
-#define CONFIG_FILE "/data/hostapd/hostapd.conf"
+#define CONFIG_FILE "/data/misc/wifi/hostapd.conf"
 
 /** Default configuration file path */
 #define DEFAULT_CONFIG_FILE_PATH "/persist/qcom/softap/hostapd_default.conf"
@@ -412,7 +412,7 @@ enum wps_config {
 
 /** Choose the configuration file */
 enum eChoose_conf_file {
-    HOSTAPD_CONF_FILE = 0,
+    HOSTAPD_CONF_QCOM_FILE = 0,
     INI_CONF_FILE = 1
 };
 

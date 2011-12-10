@@ -566,7 +566,7 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
         }
 
         snprintf(sec, MAX_INT_STR, "%u", wpa_val);
-        qsap_write_cfg(pfile, &qsap_str[STR_WPA], sec, presp, plen, HOSTAPD_CONF_FILE);
+        qsap_write_cfg(pfile, &qsap_str[STR_WPA], sec, presp, plen, HOSTAPD_CONF_QCOM_FILE);
         *plen = tmp;
     }
 
@@ -1894,7 +1894,7 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
 
     snprintf(pwps_state, MAX_INT_STR, "%d", (status == ENABLE) ? WPS_STATE_ENABLE : WPS_STATE_DISABLE);
     
-    qsap_write_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], pwps_state, presp, &tlen, HOSTAPD_CONF_FILE);
+    qsap_write_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], pwps_state, presp, &tlen, HOSTAPD_CONF_QCOM_FILE);
 
     if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], status)) {
         LOGE("%s: Failed to enable %s\n", __func__, cmd_list[eCMD_WPS_STATE].name);
@@ -1904,7 +1904,7 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
     snprintf(pwps_state, 8, "%d", ENABLE);
 
     /** update the eap_server=1 */    
-    qsap_write_cfg(pconffile, &qsap_str[STR_EAP_SERVER], pwps_state, presp, plen, HOSTAPD_CONF_FILE);
+    qsap_write_cfg(pconffile, &qsap_str[STR_EAP_SERVER], pwps_state, presp, plen, HOSTAPD_CONF_QCOM_FILE);
     
     for(i=eCMD_UUID; i<=eCMD_UPC; i++) {
         if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &cmd_list[i], status)) {
@@ -2099,7 +2099,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
     if(strcmp(hw_mode[HW_MODE_B], pcfgval) && (channel > 13)) {
         /** Change the operating mode to 'B' */
         ulen = *tlen;
-        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_B], tbuf, &ulen, HOSTAPD_CONF_FILE)) {
+        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_B], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
             LOGE("%s :Unable to update the operating mode \n", __func__);
             return eERR_UNKNOWN;
         }
@@ -2114,7 +2114,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
 
     snprintf(schan, MAX_INT_STR, "%ld", channel);
 
-    return qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], schan, tbuf, tlen, HOSTAPD_CONF_FILE);
+    return qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], schan, tbuf, tlen, HOSTAPD_CONF_QCOM_FILE);
 }
 
 static int qsap_set_operating_mode(s32 mode, s8 *pmode, s8 *tbuf, u32 *tlen)
@@ -2142,7 +2142,7 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, s8 *tbuf, u32 *tlen)
         /** change to AUTO channel */
         ulen = *tlen;
         snprintf(sconf, MAX_INT_STR, "%d", AUTO_CHANNEL);
-        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], sconf, tbuf, &ulen, HOSTAPD_CONF_FILE)) {
+        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], sconf, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
             LOGE("%s :Unable to update the channel \n", __func__);
             return eERR_UNKNOWN;
         }
@@ -2164,7 +2164,7 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, s8 *tbuf, u32 *tlen)
     }
 
     /** Update the operating mode */
-    return qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], pmode, tbuf, tlen, HOSTAPD_CONF_FILE);
+    return qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], pmode, tbuf, tlen, HOSTAPD_CONF_QCOM_FILE);
 }
 
 static int qsap_set_data_rate(s32 drate_idx, s8 *presp, u32 *plen)
@@ -2234,7 +2234,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     u32 ulen;
     s32 status;
     s32 value;
-    s16 ini = HOSTAPD_CONF_FILE;
+    s16 ini = HOSTAPD_CONF_QCOM_FILE;
     s8 *pcfg = pconffile; 
 
     pcmd += strlen("set");
@@ -2311,7 +2311,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(eERR_UNKNOWN != qsap_change_cfg(pconffile, &qsap_str[STR_ACCEPT_MAC_FILE], value)) {
                 if(eERR_UNKNOWN != qsap_change_cfg(pconffile, &qsap_str[STR_DENY_MAC_FILE], status))
                 {
-                    qsap_write_cfg(pconffile, &cmd_list[cNum], pVal, presp, plen, HOSTAPD_CONF_FILE);
+                    qsap_write_cfg(pconffile, &cmd_list[cNum], pVal, presp, plen, HOSTAPD_CONF_QCOM_FILE);
                 }
                 else {
                     goto error;
@@ -2323,6 +2323,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             return;
 
         case eCMD_COMMIT:
+#if 0 // COMMIT is not required currently for ICS framework
             if ( gIniUpdated ) {
                 status = wifi_qsap_reload_softap();
                 gIniUpdated = 0;
@@ -2331,6 +2332,8 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 status = commit();
             }
             *plen = snprintf(presp, *plen, "%s", (status ==  eSUCCESS)? SUCCESS : ERR_UNKNOWN);
+#endif
+            *plen = snprintf(presp, *plen, "%s", SUCCESS);
             return;
 
         case eCMD_ENABLE_SOFTAP:
@@ -2880,15 +2883,13 @@ int qsapsetSoftap(int argc, char *argv[])
     rlen = RECV_BUF_LEN;
     if(argc > 7) {
         snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[7]));
-    }
-    else {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", DEFAULT_CHANNEL);
-    }
-    (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
+        (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
-    if(strncmp("success", respbuf, rlen) != 0) {
-        LOGE("Failed to set channel \n");
-        return -1;
+        if(strncmp("success", respbuf, rlen) != 0) {
+            LOGE("Failed to set channel \n");
+            return -1;
+	}
+
     }
 
     rlen = RECV_BUF_LEN;
