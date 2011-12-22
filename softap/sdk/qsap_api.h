@@ -118,6 +118,7 @@ enum error_val {
 
 /** Maximum length of the SSID */
 #define SSD_MAX_LEN (32)
+#define CTRY_MAX_LEN (3)
 
 /** Beacon interval 50 to 65535 */
 #define BCN_INTERVAL_MIN  (1)
@@ -303,6 +304,9 @@ typedef enum esap_cmd {
     eCMD_AP_STATISTICS       = 56,
     eCMD_AP_AUTOSHUTOFF      = 57,
     eCMD_AP_ENERGY_DETECT_TH = 58,
+    eCMD_BASIC_RATES         = 59,
+    eCMD_REQUIRE_HT          = 60,
+    eCMD_IEEE80211N          = 61,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
@@ -366,6 +370,7 @@ enum oper_mode {
     HW_MODE_N = 2,
     HW_MODE_G_ONLY = 3,
     HW_MODE_N_ONLY = 4,
+    HW_MODE_A = 5,
 
     HW_MODE_UNKNOWN
 };

@@ -70,7 +70,7 @@
 #undef WIFI_DRIVER_MODULE_ARG
 #endif
 
-#define WIFI_DRIVER_MODULE_ARG          "con_mode=1"
+#define WIFI_DRIVER_MODULE_ARG          ""
 
 /* WIFI_SDIO_IF_DRIVER_MODULE_NAME must be defined if sdioif driver required */
 #ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
@@ -185,8 +185,6 @@ s32 wifi_qsap_load_driver(void)
     s32        ret = 0;
     s32        retry;
 
-    /* Unload the station mode driver first */
-    wifi_qsap_unload_wifi_sta_driver();
 
     if (system(SDIO_POLLING_ON)) {
         LOGE("Could not turn on the polling...");
@@ -263,43 +261,6 @@ void qsap_send_module_down_indication(void)
      else {
         LOGE("Socket open failed: %s", strerror(errno));
      }
-}
-
-s32 wifi_qsap_unload_wifi_sta_driver(void)
-{
-    s32    ret = 0;
-
-    if(system(SDIO_POLLING_ON)) {
-        LOGE("Could not turn on the polling...");
-    }
-
-    if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
-        qsap_send_module_down_indication();
-        if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
-            LOGE("Unable to unload the station mode wifi driver...\n");
-            ret = 1;
-            goto end;
-        }
-    }
-
-    sched_yield();
-
-#ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
-    if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
-        if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
-            LOGE("Unable to unload the station mode librasdioif driver\n");
-            ret = 1;
-            goto end;
-        }
-    }
-#endif
-
-end:
-    if(system(SDIO_POLLING_OFF)) {
-        LOGE("Could not turn off the polling...");
-    }
-    sched_yield();
-    return 0;
 }
 
 s32 wifi_qsap_unload_driver()

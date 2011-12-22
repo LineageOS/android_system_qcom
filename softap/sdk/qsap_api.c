@@ -135,10 +135,13 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "wpa_group_rekey",       NULL             },
     { "country_code",          NULL             },
     { "intra_bss_forward",     NULL             },
-    { "regulatory_domain",     NULL             },
+    { "ieee80211d",            NULL             },
     { "apstat",                NULL             },
     { "auto_shut_off_time",    NULL             },
     { "energy_detect_threshold", "128"          },
+    { "basic_rates",            NULL            },
+    { "require_ht",            NULL             },
+    { "ieee80211n",            "1"              },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -165,7 +168,7 @@ struct Command qsap_str[eSTR_LAST] = {
 
 /** Supported operating mode */
 char *hw_mode[HW_MODE_UNKNOWN] = {
-    "b", "g", "n", "g_only", "n_only"
+    "b", "g", "n", "g-only", "n-only", "a"
 };
 
 /** configuration file path */
@@ -1446,6 +1449,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
         case eCMD_MODEL_URL:
         case eCMD_UPC:
         case eCMD_SDK_VERSION:
+        case eCMD_COUNTRY_CODE:
                 qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
@@ -1519,10 +1523,6 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                     pval++;
                     *pval = *pval == '0' ? '1' : '0';
                 }
-                break;
-
-        case eCMD_COUNTRY_CODE:
-                qsap_read_cfg(fIni, &qsap_str[STR_COUNTRY_CODE_IN_INI], presp, plen, cmd_list[eCMD_COUNTRY_CODE].name, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_AP_STATISTICS:
@@ -2094,20 +2094,33 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         return eERR_UNKNOWN;
     }
 
-    /** If the operating mode is NOT 'B' and the channel to be set is  14
-      * then change the operating mode to 'N' mode */
-    if(strcmp(hw_mode[HW_MODE_B], pcfgval) && (channel > 13)) {
+    /** If the operating mode is 'A' and the channel to be set is in between 1 and 14
+      * then change the operating mode to 'G' mode */
+    if((!strcmp(hw_mode[HW_MODE_A], pcfgval)) && (channel <=14)) {
+        /** Change the operating mode to 'G' */
+        ulen = *tlen;
+        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_G], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
+            LOGE("%s :Unable to update the operating mode \n", __func__);
+            return eERR_UNKNOWN;
+        }
+    }
+
+    /** If the operating mode is NOT 'B' and the channel to be set is in between 12 and 14
+      * then change the operating mode to 'B' mode */
+    if(strcmp(hw_mode[HW_MODE_B], pcfgval) && ((channel >= 12) && (channel <=14))) {
         /** Change the operating mode to 'B' */
         ulen = *tlen;
         if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_B], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
             LOGE("%s :Unable to update the operating mode \n", __func__);
             return eERR_UNKNOWN;
         }
+    }
 
+    if(channel > 14) {
+        /** Change the operating mode to 'A' */
         ulen = *tlen;
-        snprintf(schan, MAX_INT_STR, "%d", AUTO_DATA_RATE);
-        if(eSUCCESS != qsap_write_cfg(fIni, &qsap_str[STR_DATA_RATE_IN_INI], schan, tbuf, &ulen, INI_CONF_FILE)) {
-            LOGE("%s :Unable to set to auto data rate \n", __func__);
+        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_A], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
+            LOGE("%s :Unable to update the operating mode \n", __func__);
             return eERR_UNKNOWN;
         }
     }
@@ -2125,45 +2138,36 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, s8 *tbuf, u32 *tlen)
     s8 sconf[MAX_INT_STR+1];
     s8 *pcfg = pconffile;
     s32 rate_idx; 
+    s8  ieee11n_enable[] = "1";
+    s8  ieee11n_disable[] = "0";
 
     ulen = *tlen;
-
-    /** Read the current operating channel */
-    if(NULL == (pcfgval = qsap_get_config_value(pconffile, &cmd_list[eCMD_CHAN], tbuf, &ulen))) {
-        LOGE("%s :Read mode error \n", __func__);
-        return eERR_UNKNOWN;
-    }
-
-    /** If the operating channel is 12, 13 or 14 and the mode to be set is not
-        'B' mode, then change the channel to auto channel */
-    channel = atoi(pcfgval);
-
-    if((channel > BG_MAX_CHANNEL) && (mode != HW_MODE_B)) {
-        /** change to AUTO channel */
-        ulen = *tlen;
-        snprintf(sconf, MAX_INT_STR, "%d", AUTO_CHANNEL);
-        if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], sconf, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
-            LOGE("%s :Unable to update the channel \n", __func__);
-            return eERR_UNKNOWN;
-        }
-    }
-
-    ulen = *tlen;
-    if(NULL == (pcfgval = qsap_get_config_value(fIni, &qsap_str[STR_DATA_RATE_IN_INI], tbuf, &ulen))) {
-        LOGE("%s :Read mode error \n", __func__);
-        return eERR_UNKNOWN;
-    }
-
-    /** Update the data rate, depending on the mode to be set */
-    rate_idx = atoi(pcfgval);
-    if(((mode == HW_MODE_B) && (rate_idx > B_MODE_MAX_DATA_RATE_IDX)) ||
-        (((mode == HW_MODE_G) || (mode == HW_MODE_G_ONLY)) && (rate_idx > G_ONLY_MODE_MAX_DATA_RATE_IDX))) {
-        snprintf(sconf, MAX_INT_STR, "%d", AUTO_DATA_RATE);
-        ulen = *tlen;
-        qsap_write_cfg(fIni, &qsap_str[STR_DATA_RATE_IN_INI], sconf, tbuf, &ulen, INI_CONF_FILE);
-    }
 
     /** Update the operating mode */
+    qsap_change_cfg(pcfg, &cmd_list[eCMD_BASIC_RATES],DISABLE);
+    qsap_change_cfg(pcfg, &cmd_list[eCMD_REQUIRE_HT],DISABLE);
+    qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_disable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
+    switch(mode)
+    {
+        case HW_MODE_G_ONLY:
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_BASIC_RATES],ENABLE);
+            break;
+        case HW_MODE_N_ONLY:
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_REQUIRE_HT],ENABLE);
+            /* fall through */
+        case HW_MODE_N:
+        case HW_MODE_A:
+	    ulen = *tlen;
+            qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_enable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
+            break;
+        case HW_MODE_B:
+	    ulen = *tlen;
+            qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_disable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
+            break;
+    }
+    if(mode == HW_MODE_G_ONLY || mode == HW_MODE_N_ONLY || mode == HW_MODE_N ) {
+        snprintf(pmode, sizeof(u32), "%s",hw_mode[HW_MODE_G]);
+    }
     return qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], pmode, tbuf, tlen, HOSTAPD_CONF_QCOM_FILE);
 }
 
@@ -2343,20 +2347,13 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
 
             if ( *pVal == '0' ) {
-                status = wifi_qsap_stop_softap();
-                if(status == eSUCCESS)
                     status = wifi_qsap_unload_driver();
             }
             else {
                 status = wifi_qsap_load_driver();
-                if(status == eSUCCESS)
-                    status = wifi_qsap_start_softap();
-                    if (status != eSUCCESS)
-                        wifi_qsap_unload_driver();
             }
             *plen = snprintf(presp, *plen, "%s", (status==eSUCCESS) ? SUCCESS : "failure Could not enable softap");
             return;
-
         case eCMD_SSID:
             value = strlen(pVal);
             if(SSD_MAX_LEN < value)
@@ -2380,8 +2377,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
 
         case eCMD_CHAN:
             value = atoi(pVal);
-            if(FALSE == IS_VALID_CHANNEL(value))
-                goto error;
 
             ulen = MAX_FILE_PATH_LEN;
             value = qsap_set_channel(value, filename, &ulen);
@@ -2542,7 +2537,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             qsap_set_data_rate(value, presp, plen);
             return;
-
         case eCMD_UUID:
             value = strlen(pVal);
             if(TRUE != IS_VALID_UUID_LEN(value))
@@ -2613,7 +2607,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_UPC_LEN(value))
                 goto error;
             break;
-
         case eCMD_WMM_STATE:
             value = atoi(pVal);
             if(TRUE != IS_VALID_WMM_STATE(value))
@@ -2623,7 +2616,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             cNum = STR_WMM_IN_INI;
             ini = INI_CONF_FILE; 
             break;
-
         case eCMD_WPS_STATE:
             value = atoi(pVal);
             if(TRUE != IS_VALID_WPS_STATE(value))
@@ -2665,8 +2657,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
 
             snprintf(pVal, MAX_INT_STR, "%ld", value);
-            cNum = STR_802DOT11D_IN_INI;
-            ini = INI_CONF_FILE;
             break;
 
         case eCMD_RTS_THRESHOLD:
@@ -2702,11 +2692,12 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             snprintf(pVal, MAX_INT_STR, "%d", value ? 0 : 1);
             cNum = STR_INTRA_BSS_FORWARD_IN_INI;
             ini = INI_CONF_FILE;
-            break;    
+            break;
 
         case eCMD_COUNTRY_CODE:
-            cNum = STR_COUNTRY_CODE_IN_INI;
-            ini = INI_CONF_FILE;
+            value = strlen(pVal);
+            if(value > CTRY_MAX_LEN )
+                goto error;
             break;
 
         case eCMD_AP_AUTOSHUTOFF:
