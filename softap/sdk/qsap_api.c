@@ -134,7 +134,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "rts_threshold",         NULL             },
     { "wpa_group_rekey",       NULL             },
     { "country_code",          NULL             },
-    { "intra_bss_forward",     NULL             },
+    { "ap_isolate",            NULL             },
     { "ieee80211d",            NULL             },
     { "apstat",                NULL             },
     { "auto_shut_off_time",    NULL             },
@@ -1516,13 +1516,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_INTRA_BSS_FORWARD:
-                qsap_read_cfg(fIni, &qsap_str[STR_INTRA_BSS_FORWARD_IN_INI], presp, plen, cmd_list[eCMD_INTRA_BSS_FORWARD].name, GET_ENABLED_ONLY);
-
-                pval = strchr(presp, '=');
-                if ( pval != NULL ) {
-                    pval++;
-                    *pval = *pval == '0' ? '1' : '0';
-                }
+                qsap_read_cfg(pconffile, &cmd_list[eCMD_INTRA_BSS_FORWARD], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_AP_STATISTICS:
@@ -2681,7 +2675,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
             snprintf(pVal, sizeof(u32), "%ld", value);
             cNum = STR_TX_POWER_IN_INI;
-            ini = INI_CONF_FILE; 
+            ini = INI_CONF_FILE;
             break;
 
         case eCMD_INTRA_BSS_FORWARD:
@@ -2689,10 +2683,17 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_INTRA_BSS_STATUS(value))
                 goto error;
 
-            snprintf(pVal, MAX_INT_STR, "%d", value ? 0 : 1);
-            cNum = STR_INTRA_BSS_FORWARD_IN_INI;
-            ini = INI_CONF_FILE;
-            break;
+            if(DISABLE == value) {
+                status = qsap_change_cfg(pcfg,
+                          &cmd_list[eCMD_INTRA_BSS_FORWARD],DISABLE);
+            }
+             else {
+                status = qsap_change_cfg(pcfg,
+                          &cmd_list[eCMD_INTRA_BSS_FORWARD],ENABLE);
+            }
+            *plen = snprintf(presp, *plen, "%s", (status == eSUCCESS) ?
+                     SUCCESS : ERR_UNKNOWN);
+            return;
 
         case eCMD_COUNTRY_CODE:
             value = strlen(pVal);
