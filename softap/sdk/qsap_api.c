@@ -173,7 +173,7 @@ char *hw_mode[HW_MODE_UNKNOWN] = {
 
 /** configuration file path */
 char *pconffile = CONFIG_FILE; 
-char *fIni = INI_FILE;
+char *fIni =  WIFI_DRIVER_CONF_FILE;
 s8 ini_file[64] = {0};
 
 /**
@@ -2673,6 +2673,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             if(TRUE != IS_VALID_TX_POWER(value))
                 goto error;
+            qsap_set_ini_filename();
             snprintf(pVal, sizeof(u32), "%ld", value);
             cNum = STR_TX_POWER_IN_INI;
             ini = INI_CONF_FILE;

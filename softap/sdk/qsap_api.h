@@ -78,6 +78,14 @@ enum error_val {
     eERR_LOAD_FAILED_SOFTAP
 };
 
+#ifndef WIFI_DRIVER_CONF_FILE
+#define WIFI_DRIVER_CONF_FILE            NULL
+#endif
+
+#ifndef WIFI_DRIVER_DEF_CONF_FILE
+#define WIFI_DRIVER_DEF_CONF_FILE        NULL
+#endif
+
 /** Configuration file name */
 #define CONFIG_FILE "/data/misc/wifi/hostapd.conf"
 
@@ -89,9 +97,6 @@ enum error_val {
 
 /** Deny list file name */
 #define DENY_LIST_FILE "/data/hostapd/hostapd.deny"
-
-/** Ini file */
-#define INI_FILE "/system/etc/firmware/wlan/qcom_cfg.ini"
 
 /** Default Ini file */
 #define DEFAULT_INI_FILE "/persist/qcom/softap/qcom_cfg_default.ini"
