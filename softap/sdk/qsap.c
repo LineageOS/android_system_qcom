@@ -357,8 +357,8 @@ s32 is_softap_enabled(void)
 {
     s8    stat[32] = {0};
 
-    if ( property_get("init.svc.hostapd", stat, NULL) &&
-                            (strcmp(stat, "running") == 0)) {
+    if ( property_get("wifi.hostapd", stat, NULL) &&
+                            (strcmp(stat, "1") == 0)) {
         LOGD("HOSTAPD enabled \n");
         return ENABLE;
     }
