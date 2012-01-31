@@ -392,7 +392,8 @@ enum auth_alg {
 /** Allow or Deny MAC address list selection */
 enum macaddr_acl {
     ACL_DENY_LIST = 0,
-    ACL_ALLOW_LIST = 1
+    ACL_ALLOW_LIST = 1,
+    ACL_ALLOW_AND_DENY_LIST = 2
 };
 
 enum ap_reset {
@@ -400,6 +401,10 @@ enum ap_reset {
     SAP_RESET_DRIVER_BSS = 1,
     SAP_STOP_BSS = 2,
     SAP_STOP_DRIVER_BSS = 3,
+#ifdef QCOM_WLAN_CONCURRENCY
+    SAP_INITAP = 4,
+    SAP_EXITAP = 5,
+#endif
     SAP_RESET_INVALID
 };
 
@@ -442,7 +447,7 @@ struct Command
 #define IS_VALID_SEC_MODE(x) (((x >= SEC_MODE_NONE) && (x < SEC_MODE_INVALID)) ? TRUE : FALSE)
 
 /** Validate the selection of access or deny MAC address list */
-#define IS_VALID_MAC_ACL(x) (((x==ACL_DENY_LIST) || (x==ACL_ALLOW_LIST)) ? TRUE : FALSE)
+#define IS_VALID_MAC_ACL(x) (((x==ACL_DENY_LIST) || (x==ACL_ALLOW_LIST) || (x==ACL_ALLOW_AND_DENY_LIST)) ? TRUE : FALSE)
 
 /** Validate the broadcast SSID status */
 #define IS_VALID_BSSID(x) (((value == ENABLE) || (value == DISABLE)) ? TRUE: FALSE)

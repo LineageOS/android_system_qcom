@@ -263,6 +263,63 @@ void qsap_send_module_down_indication(void)
      }
 }
 
+
+s32 qsap_send_init_ap(void)
+{
+    int s, ret;
+    struct iwreq wrq;
+    s32 status = eSUCCESS;
+    u32 *params = (u32 *)&wrq.u;
+
+     /* Equivalent to: iwpriv wlan0 initAP */
+     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
+        strncpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
+        wrq.u.data.length = 0; /* No Set arguments */
+        wrq.u.data.flags = 2; /* WE_INIT_AP sub-command */
+        ret = ioctl(s, (SIOCIWFIRSTPRIV + 6), &wrq);
+        if (ret < 0 ) {
+           LOGE("ioctl failed: %s", strerror(errno));
+           status = eERR_START_SAP;
+        }
+        close(s);
+        sched_yield();
+     }
+     else {
+        LOGE("Socket open failed: %s", strerror(errno));
+        status = eERR_START_SAP;
+     }
+     return status;
+}
+
+
+s32 qsap_send_exit_ap(void)
+{
+    int s, ret;
+    struct iwreq wrq;
+    s32 status = eSUCCESS;
+    u32 *params = (u32 *)&wrq.u;
+
+     /* Equivalent to: iwpriv wlan0 exitAP */
+     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
+        strncpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
+        wrq.u.data.length = 0; /* No Set arguments */
+        wrq.u.data.flags = 3;  /*WE_EXIT_AP sub-command */
+
+        ret = ioctl(s, (SIOCIWFIRSTPRIV + 6), &wrq);
+        if (ret < 0 ) {
+            LOGE("ioctl failed: %s", strerror(errno));
+            status = eERR_STOP_SAP;
+        }
+        close(s);
+        sched_yield();
+     }
+     else {
+        LOGE("Socket open failed: %s", strerror(errno));
+        status = eERR_STOP_SAP;
+     }
+     return status;
+}
+
 s32 wifi_qsap_unload_driver()
 {
     s32 ret = eSUCCESS;
@@ -433,6 +490,25 @@ s32 wifi_qsap_start_softap()
     LOGE("Unable to start the SoftAP\n");
     return eERR_START_SAP;
 }
+
+#ifdef QCOM_WLAN_CONCURRENCY
+s32 wifi_qsap_start_softap_in_concurrency()
+{
+    s32 status;
+    /*Send initAP IOCTL to Driver. Hostapd start is done by Netd.*/
+    status = qsap_send_init_ap();
+    return status;
+}
+
+s32 wifi_qsap_stop_softap_in_concurrency()
+{
+    s32 status;
+    /*Send exitAP IOCTL to Driver. Hostapd stop is done by Netd.*/
+    status = qsap_send_exit_ap();
+    return status;
+}
+#endif
+
 
 s32 wifi_qsap_stop_softap()
 {

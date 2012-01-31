@@ -2291,18 +2291,23 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             if(FALSE == IS_VALID_MAC_ACL(value))
                 goto error;
-                
+
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
             snprintf(pVal, sizeof(u32), "%ld", value);
-                
+
             if(ACL_ALLOW_LIST == value) {
                 value = ENABLE;
                 status = DISABLE;
             }
-            else {
+            else if(ACL_DENY_LIST == value){
                 value = DISABLE;
+                status = ENABLE;
+            }
+            else {
+                // must be ACL_ALLOW_AND_DENY_LIST
+                value = ENABLE;
                 status = ENABLE;
             }
 
@@ -2508,6 +2513,14 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 if(status == eSUCCESS)
                     status = wifi_qsap_unload_driver();
             }
+#ifdef QCOM_WLAN_CONCURRENCY
+            else if(SAP_INITAP == value) {
+                status = wifi_qsap_start_softap_in_concurrency();
+            }
+            else if(SAP_EXITAP == value) {
+                status = wifi_qsap_stop_softap_in_concurrency();
+            }
+#endif
             else {
                 status = !eSUCCESS;
             }
