@@ -75,7 +75,8 @@ enum error_val {
     eERR_UNLOAD_FAILED_SDIO,
     eERR_UNLOAD_FAILED_SOFTAP,
     eERR_LOAD_FAILED_SDIOIF,
-    eERR_LOAD_FAILED_SOFTAP
+    eERR_LOAD_FAILED_SOFTAP,
+    eERR_SET_CHAN_RANGE
 };
 
 #ifndef WIFI_DRIVER_CONF_FILE
@@ -312,6 +313,7 @@ typedef enum esap_cmd {
     eCMD_BASIC_RATES         = 59,
     eCMD_REQUIRE_HT          = 60,
     eCMD_IEEE80211N          = 61,
+    eCMD_SET_CHANNEL_RANGE   = 62,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
@@ -437,6 +439,21 @@ struct Command
     s8  * default_value;
 };
 
+/** STA Channel information*/
+typedef struct sta_channel_info {
+        int subioctl;
+        int stastartchan;
+        int staendchan;
+        int staband;
+} sta_channel_info;
+
+/**SAP Channel information*/
+typedef struct sap_channel_info {
+        int startchan;
+        int endchan;
+        int band;
+} sap_channel_info;
+
 /** Validate enable / disable softap */
 #define IS_VALID_SOFTAP_ENABLE(x) (((value == ENABLE) || (value == DISABLE)) ? TRUE: FALSE)
 
@@ -551,6 +568,7 @@ void qsap_del_ctrl_iface(void);
 s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault);
 void check_for_configuration_files(void);
 void qsap_set_ini_filename(void);
+int qsap_set_channel_range(s8 * cmd);
 
 #if __cplusplus
 };  // extern "C"

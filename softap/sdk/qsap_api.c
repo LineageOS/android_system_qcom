@@ -46,10 +46,13 @@
 #include "qsap_api.h"
 #include "qsap.h"
 
+#define WLAN_PRIV_SET_THREE_INT_GET_NONE  (SIOCIWFIRSTPRIV + 4)
 #define QCSAP_IOCTL_GET_CHANNEL       (SIOCIWFIRSTPRIV+9)
 #define QCSAP_IOCTL_ASSOC_STA_MACADDR (SIOCIWFIRSTPRIV+10)
 #define QCSAP_IOCTL_DISASSOC_STA      (SIOCIWFIRSTPRIV+11)
 #define QCSAP_IOCTL_AP_STATS          (SIOCIWFIRSTPRIV+12)
+#define QCSAP_IOCTL_SET_CHANNEL_RANGE (SIOCIWFIRSTPRIV+17)
+#define WE_SET_SAP_CHANNELS  3
 
 //#define LOG_TAG "QCSDK-"
 
@@ -142,6 +145,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "basic_rates",            NULL            },
     { "require_ht",            NULL             },
     { "ieee80211n",            "1"              },
+    { "setchannelrange",       NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -1150,6 +1154,85 @@ error:
     *pchan = 0;
     LOGE("%s: Failed to read channel \n", __func__);
     return eERR_CHAN_READ;
+}
+
+/**
+ *    Set the channel Range for soft AP.
+ */
+int qsap_set_channel_range(s8 *buf)
+{
+    int sock;
+    struct iwreq wrq;
+    s8 interface[MAX_CONF_LINE_LEN];
+    u32 len = MAX_CONF_LINE_LEN;
+    s8 *pif;
+    s8 *temp;
+    int ret, i;
+    sap_channel_info sap_chan_range;
+    sta_channel_info sta_chan_range;
+
+    LOGE("buf :%s\n", buf);
+
+    temp = buf;
+    temp = strchr(buf, '=');
+    if (NULL == temp) {
+        goto error;
+    }
+    temp++;
+
+    if (NULL == (pif = qsap_get_config_value(pconffile,
+                    &qsap_str[STR_INTERFACE], interface, &len))) {
+        LOGE("%s :interface error\n", __func__);
+        goto error;
+    }
+
+    interface[len] = '\0';
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        LOGE("%s :socket error\n", __func__);
+        goto error;
+    }
+
+    memset(&sap_chan_range, 0, sizeof(sap_chan_range));
+    memset(&sta_chan_range, 0, sizeof(sta_chan_range));
+    memset(&wrq, 0, sizeof(wrq));
+
+    if (ENABLE != is_softap_enabled()) {
+        strncpy(wrq.ifr_name, "wlan0", sizeof(wrq.ifr_name));
+        sta_chan_range.subioctl = WE_SET_SAP_CHANNELS;
+        sscanf(temp, "%d %d %d", &(sta_chan_range.stastartchan),
+                &(sta_chan_range.staendchan), &(sta_chan_range.staband));
+        memcpy(wrq.u.name, (char *)(&sta_chan_range), sizeof(sta_chan_range));
+
+        LOGE("%s :Softap is off,Send SET_CHANNEL_RANGE over sta interface\n",
+                __func__);
+        ret = ioctl(sock, WLAN_PRIV_SET_THREE_INT_GET_NONE, &wrq);
+    } else {
+          strncpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
+          sscanf(temp, "%d %d %d", &(sap_chan_range.startchan),
+                  &(sap_chan_range.endchan), &(sap_chan_range.band));
+          memcpy(wrq.u.name, (char *)(&sap_chan_range), sizeof(sap_chan_range));
+
+          LOGE("%s :SAP is on,Send SET_CHANNEL_RANGE over softap interface\n",
+                    __func__);
+          ret = ioctl(sock, QCSAP_IOCTL_SET_CHANNEL_RANGE, &wrq);
+    }
+
+    if (ret < 0) {
+        LOGE("%s: ioctl failure\n", __func__);
+        close(sock);
+        goto error;
+    }
+
+    LOGE("Recv len :%d\n", wrq.u.data.length);
+
+    close(sock);
+    return eSUCCESS;
+
+error:
+    LOGE("%s: Failed to set channel range\n", __func__);
+    return eERR_SET_CHAN_RANGE;
 }
 
 int qsap_read_channel(s8 *pfile, struct Command *pcmd, s8 *presp, u32 *plen, s8 *pvar)
@@ -2734,6 +2817,12 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             cNum = STR_AP_ENERGY_DETECT_TH;
             ini = INI_CONF_FILE;
             break;
+        case eCMD_SET_CHANNEL_RANGE:
+            LOGE("eCMD_SET_CHANNEL_RANGE pcmd :%s\n", pcmd);
+            value = qsap_set_channel_range(pcmd);
+           *plen = snprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS :
+                             ERR_UNKNOWN);
+            return;
 
         default: ;
             /** Do not goto error, in default case */
