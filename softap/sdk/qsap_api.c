@@ -46,12 +46,14 @@
 #include "qsap_api.h"
 #include "qsap.h"
 
+#define QCSAP_IOCTL_GETPARAM          (SIOCIWFIRSTPRIV+1)
 #define WLAN_PRIV_SET_THREE_INT_GET_NONE  (SIOCIWFIRSTPRIV + 4)
 #define QCSAP_IOCTL_GET_CHANNEL       (SIOCIWFIRSTPRIV+9)
 #define QCSAP_IOCTL_ASSOC_STA_MACADDR (SIOCIWFIRSTPRIV+10)
 #define QCSAP_IOCTL_DISASSOC_STA      (SIOCIWFIRSTPRIV+11)
 #define QCSAP_IOCTL_AP_STATS          (SIOCIWFIRSTPRIV+12)
 #define QCSAP_IOCTL_SET_CHANNEL_RANGE (SIOCIWFIRSTPRIV+17)
+#define QCSAP_PARAM_GET_AUTO_CHANNEL 9
 #define WE_SET_SAP_CHANNELS  3
 
 //#define LOG_TAG "QCSDK-"
@@ -146,6 +148,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "require_ht",            NULL             },
     { "ieee80211n",            "1"              },
     { "setchannelrange",       NULL             },
+    { "autochannel",           NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -1145,7 +1148,7 @@ int qsap_get_operating_channel(s32 *pchan)
     }
 
     LOGE("Recv len :%d \n", wrq.u.data.length);
-
+    *pchan = *(int *)(&wrq.u.name[0]);
     LOGE("Operating channel :%ld \n", *pchan);
     close(sock);
     return eSUCCESS;
@@ -1154,6 +1157,70 @@ error:
     *pchan = 0;
     LOGE("%s: Failed to read channel \n", __func__);
     return eERR_CHAN_READ;
+}
+
+/**
+ *    Get the sap auto channel selection for soft AP.
+ */
+int qsap_get_sap_auto_channel_selection(s32 *pautochan)
+{
+    int sock;
+    struct iwreq wrq;
+    s8 interface[MAX_CONF_LINE_LEN];
+    u32 len = MAX_CONF_LINE_LEN;
+    s8 *pif;
+    int ret;
+    sap_auto_channel_info sap_autochan_info;
+    s32 *pchan;
+
+    if(ENABLE != is_softap_enabled()) {
+        LOGE("%s :is_softap_enabled() goto error \n", __func__);
+        goto error;
+    }
+
+    if(NULL == (pif = qsap_get_config_value(pconffile,
+                                 &qsap_str[STR_INTERFACE], interface, &len))) {
+        LOGD("%s :interface error \n", __func__);
+        goto error;
+    }
+
+    interface[len] = '\0';
+
+     sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock < 0) {
+        LOGD("%s :socket error \n", __func__);
+        goto error;
+    }
+
+    *pautochan = 0;
+
+    memset(&sap_autochan_info, 0, sizeof(sap_autochan_info));
+    memset(&wrq, 0, sizeof(wrq));
+
+    strncpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
+    wrq.u.data.length = sizeof(s32);
+    sap_autochan_info.subioctl = QCSAP_PARAM_GET_AUTO_CHANNEL;
+    wrq.u.data.pointer = pautochan;
+    memcpy(wrq.u.name, (char *)(&sap_autochan_info), sizeof(sap_autochan_info));
+    wrq.u.data.flags = 0;
+
+    ret = ioctl(sock, QCSAP_IOCTL_GETPARAM, &wrq);
+    if(ret < 0) {
+        LOGE("%s: ioctl failure \n",__func__);
+        close(sock);
+        goto error;
+    }
+
+    LOGD("Recv len :%d \n", wrq.u.data.length);
+    *pautochan = *(int *)(&wrq.u.name[0]);
+    LOGD("Sap auto channel selection pautochan=%ld \n", *pautochan);
+    close(sock);
+    return eSUCCESS;
+
+error:
+    *pautochan = 0;
+    LOGE("%s: Failed to read sap auto channel selection\n", __func__);
+    return eERR_GET_AUTO_CHAN;
 }
 
 /**
@@ -1241,26 +1308,32 @@ int qsap_read_channel(s8 *pfile, struct Command *pcmd, s8 *presp, u32 *plen, s8 
     s32  chan;
     u32  len = *plen;
 
-    if(eSUCCESS == qsap_read_cfg(pfile, pcmd, presp, plen, pvar, GET_ENABLED_ONLY)) {
-        pval = strchr(presp, '=');
+   if(eSUCCESS == qsap_get_operating_channel(&chan)) {
+            *plen = snprintf(presp, len, "%s %s=%lu", SUCCESS, pcmd->name, chan);
+             LOGD("presp :%s\n", presp);
+   } else {
+          *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
+   }
 
-        if(NULL == pval) {
-            LOGE("%s :CHAN absent \n", __func__);
-            return eERR_CONFIG_PARAM_MISSING;
-        }
+    return eSUCCESS;
+}
 
-        pval++;
-        chan = atoi(pval);
+int qsap_read_auto_channel(struct Command *pcmd, s8 *presp, u32 *plen)
+{
+    s8   *pval, *pautoval;
+    s32  pautochan;
+    u32  len = *plen;
+    int autochan;
 
-        if(chan == AUTO_CHANNEL) {
-            if(eSUCCESS == qsap_get_operating_channel(&chan)) {
-                *plen = snprintf(presp, len, "%s %s=0,%lu", SUCCESS, pcmd->name, chan);
-            }
-            else {
-                *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
-            }
-        }
+    LOGE("%s :\n", __func__);
+
+    if (eSUCCESS == qsap_get_sap_auto_channel_selection(&pautochan)) {
+          *plen = snprintf(presp, len, "%s autochannel=%lu", SUCCESS, pautochan);
+          LOGE("presp :%s\n", presp);
+    } else {
+          *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
     }
+
     return eSUCCESS;
 }
 
@@ -1613,7 +1686,9 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
         case eCMD_AP_ENERGY_DETECT_TH:
                 qsap_read_cfg(fIni, &qsap_str[STR_AP_ENERGY_DETECT_TH], presp, plen, cmd_list[eCMD_AP_ENERGY_DETECT_TH].name, GET_ENABLED_ONLY);
                 break;
-
+        case eCMD_GET_AUTO_CHANNEL:
+                qsap_read_auto_channel(&cmd_list[cNum],presp, plen);
+               break;
         default:
             /** Error case */
             *plen = snprintf(presp, *plen, "%s", ERR_INVALID_ARG);
