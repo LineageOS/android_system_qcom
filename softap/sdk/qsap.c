@@ -86,6 +86,16 @@
 
 #endif
 
+#ifndef WIFI_CFG80211_DRIVER_MODULE_PATH
+#define WIFI_CFG80211_DRIVER_MODULE_PATH ""
+#endif
+#ifndef WIFI_CFG80211_DRIVER_MODULE_NAME
+#define WIFI_CFG80211_DRIVER_MODULE_NAME ""
+#endif
+#ifndef WIFI_CFG80211_DRIVER_MODULE_ARG
+#define WIFI_CFG80211_DRIVER_MODULE_ARG  ""
+#endif
+
 
 extern int init_module(const char *name, u32, const s8 *);
 extern int delete_module(const char *name, int);
@@ -98,7 +108,7 @@ static s32 check_driver_loaded( const s8 * tag)
     s8   line[126];
 
     if ((proc = fopen("/proc/modules", "r")) == NULL) {
-        LOGW("Could not open %s: %s", "/proc/modules", strerror(errno));
+        ALOGW("Could not open %s: %s", "/proc/modules", strerror(errno));
         return 0;
     }
 
@@ -122,23 +132,23 @@ static s32 insmod(const s8 *filename, const s8 *args, const s8 * tag)
     s32 ret = 0;
 
     if ( check_driver_loaded(tag) ) {
-        LOGE("Driver: %s already loaded\n", filename);
+        ALOGE("Driver: %s already loaded\n", filename);
         return ret;
     }
 
-    LOGD("Loading Driver: %s %s\n", filename, args);
+    ALOGD("Loading Driver: %s %s\n", filename, args);
 
     module = (void*)load_file(filename, (unsigned int*)&size);
 
     if (!module) {
-        LOGE("Cannot load file: %s\n", filename);
+        ALOGE("Cannot load file: %s\n", filename);
         return -1;
     }
 
     ret = init_module(module, size, args);
 
     if ( ret ) {
-        LOGE("init_module (%s:%d) failed\n", filename, (int)size);
+        ALOGE("init_module (%s:%d) failed\n", filename, (int)size);
     }
 
     free(module);
@@ -166,7 +176,7 @@ static s32 rmmod(const s8 *modname)
     }
 
     if (ret != 0) {
-        LOGD("Unable to unload driver module \"%s\": %s\n",
+        ALOGD("Unable to unload driver module \"%s\": %s\n",
                     modname, strerror(errno));
     }
 
@@ -178,23 +188,33 @@ static s32 rmmod(const s8 *modname)
 
 static const s8 SDIO_POLLING_ON[]     = "/etc/init.qcom.sdio.sh 1";
 static const s8 SDIO_POLLING_OFF[]    = "/etc/init.qcom.sdio.sh 0";
+static const char DRIVER_CFG80211_MODULE_NAME[]  = WIFI_CFG80211_DRIVER_MODULE_NAME;
+static const char DRIVER_CFG80211_MODULE_PATH[]  = WIFI_CFG80211_DRIVER_MODULE_PATH;
+static const char DRIVER_CFG80211_MODULE_ARG[]   = WIFI_CFG80211_DRIVER_MODULE_ARG;
 
 s32 wifi_qsap_load_driver(void)
 {
     s32    size;
-    s32        ret = 0;
+    s32        ret = -1;
     s32        retry;
 
 
     if (system(SDIO_POLLING_ON)) {
-        LOGE("Could not turn on the polling...");
+//      ALOGE("Could not turn on the polling...");
+    }
+
+    if ('\0' != *DRIVER_CFG80211_MODULE_PATH) {
+       if (insmod(DRIVER_CFG80211_MODULE_PATH, DRIVER_CFG80211_MODULE_ARG,DRIVER_CFG80211_MODULE_NAME) < 0) {
+            ALOGE("Could not load cfg80211...");
+            return ret;
+        }
     }
 
 #ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
     ret = insmod(WIFI_SDIO_IF_DRIVER_MODULE_PATH, WIFI_SDIO_IF_DRIVER_MODULE_ARG, WIFI_SDIO_IF_DRIVER_MODULE_NAME " ");
 
     if ( ret != 0 ) {
-        LOGE("init_module failed sdioif\n");
+        ALOGE("init_module failed sdioif\n");
         ret = eERR_LOAD_FAILED_SDIOIF;
         goto end;
     }
@@ -208,13 +228,16 @@ s32 wifi_qsap_load_driver(void)
 #ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
         if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
             if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
-                LOGE("Unable to unload the station mode librasdioif driver\n");
+                ALOGE("Unable to unload the station mode librasdioif driver\n");
             }
         }
 #endif
-        LOGE("init_module failed libra_softap\n");
+        if ('\0' != *DRIVER_CFG80211_MODULE_NAME) {
+              rmmod(DRIVER_CFG80211_MODULE_NAME);
+        }
+        ALOGE("init_module failed libra_softap\n");
         ret = eERR_LOAD_FAILED_SOFTAP;
-		goto end;
+        goto end;
     }
 
     sched_yield();
@@ -223,7 +246,7 @@ s32 wifi_qsap_load_driver(void)
 
 end:
     if(system(SDIO_POLLING_OFF)) {
-        LOGE("Could not turn off the polling...");
+//      ALOGE("Could not turn off the polling...");
     }
 
     return ret;
@@ -252,14 +275,14 @@ void qsap_send_module_down_indication(void)
             strncpy(wrq.ifr_name, "softap.0", IFNAMSIZ);
             ret = ioctl(s, (SIOCIWFIRSTPRIV + 1), &wrq);
             if (ret < 0 ) {
-               LOGE("ioctl failed: %s", strerror(errno));
+               ALOGE("ioctl failed: %s", strerror(errno));
             }
         }
         close(s);
         sched_yield();
      }
      else {
-        LOGE("Socket open failed: %s", strerror(errno));
+        ALOGE("Socket open failed: %s", strerror(errno));
      }
 }
 
@@ -278,14 +301,14 @@ s32 qsap_send_init_ap(void)
         wrq.u.data.flags = 2; /* WE_INIT_AP sub-command */
         ret = ioctl(s, (SIOCIWFIRSTPRIV + 6), &wrq);
         if (ret < 0 ) {
-           LOGE("ioctl failed: %s", strerror(errno));
+           ALOGE("ioctl failed: %s", strerror(errno));
            status = eERR_START_SAP;
         }
         close(s);
         sched_yield();
      }
      else {
-        LOGE("Socket open failed: %s", strerror(errno));
+        ALOGE("Socket open failed: %s", strerror(errno));
         status = eERR_START_SAP;
      }
      return status;
@@ -307,14 +330,14 @@ s32 qsap_send_exit_ap(void)
 
         ret = ioctl(s, (SIOCIWFIRSTPRIV + 6), &wrq);
         if (ret < 0 ) {
-            LOGE("ioctl failed: %s", strerror(errno));
+            ALOGE("ioctl failed: %s", strerror(errno));
             status = eERR_STOP_SAP;
         }
         close(s);
         sched_yield();
      }
      else {
-        LOGE("Socket open failed: %s", strerror(errno));
+        ALOGE("Socket open failed: %s", strerror(errno));
         status = eERR_STOP_SAP;
      }
      return status;
@@ -325,13 +348,13 @@ s32 wifi_qsap_unload_driver()
     s32 ret = eSUCCESS;
 
     if(system(SDIO_POLLING_ON)) {
-        LOGE("Could not turn on the polling...");
+        ALOGE("Could not turn on the polling...");
     }
 
     if ( check_driver_loaded(WIFI_DRIVER_MODULE_NAME " ") ) {
         qsap_send_module_down_indication();
         if ( rmmod(WIFI_DRIVER_MODULE_NAME) ) {
-            LOGE("Unable to unload the libra_softap driver\n");
+            ALOGE("Unable to unload the libra_softap driver\n");
             ret = eERR_UNLOAD_FAILED_SOFTAP;
             goto end;
         }
@@ -342,7 +365,7 @@ s32 wifi_qsap_unload_driver()
 #ifdef WIFI_SDIO_IF_DRIVER_MODULE_NAME
     if ( check_driver_loaded(WIFI_SDIO_IF_DRIVER_MODULE_NAME " ") ) {
         if ( rmmod(WIFI_SDIO_IF_DRIVER_MODULE_NAME) ) {
-            LOGE("Unable to unload the librasdioif driver\n");
+            ALOGE("Unable to unload the librasdioif driver\n");
             ret = eERR_UNLOAD_FAILED_SDIO;
             goto end;
         }
@@ -351,7 +374,7 @@ s32 wifi_qsap_unload_driver()
 
 end:
     if(system(SDIO_POLLING_OFF)) {
-        LOGE("Could not turn off the polling...");
+        ALOGE("Could not turn off the polling...");
     }
 
     return ret;
@@ -375,7 +398,7 @@ s32 wifi_qsap_stop_bss(void)
     }
 
     if(NULL == (iface = qsap_get_config_value(CONFIG_FILE, &qsap_str[STR_INTERFACE], interface, (u32*)&len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         return ret;
     }
 
@@ -383,7 +406,7 @@ s32 wifi_qsap_stop_bss(void)
     sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock < 0) {
-        LOGE("Failed to open socket");
+        ALOGE("Failed to open socket");
         return eERR_STOP_BSS;
     }
 
@@ -399,10 +422,10 @@ s32 wifi_qsap_stop_bss(void)
     close(sock);
 
     if (ret) {
-        LOGE("IOCTL stopbss failed: %ld", ret);
+        ALOGE("IOCTL stopbss failed: %ld", ret);
         ret = eERR_STOP_BSS;
     } else {
-        LOGD("STOP BSS ISSUED");
+        ALOGD("STOP BSS ISSUED");
         ret = eSUCCESS;
     }
 
@@ -416,11 +439,11 @@ s32 is_softap_enabled(void)
 
     if ( property_get("wifi.hostapd", stat, NULL) &&
                             (strcmp(stat, "1") == 0)) {
-        LOGD("HOSTAPD enabled \n");
+        ALOGD("HOSTAPD enabled \n");
         return ENABLE;
     }
 
-    LOGD("HOSTAPD disabled \n");
+    ALOGD("HOSTAPD disabled \n");
     return DISABLE;
 }
 
@@ -432,7 +455,7 @@ s32 commit(void)
     if ( is_softap_enabled() ) {
         /** Stop BSS */
         if(eSUCCESS != (ret = wifi_qsap_stop_bss())) {
-            LOGE("%s: stop bss failed \n", __func__);
+            ALOGE("%s: stop bss failed \n", __func__);
             return ret;
         }
         sleep(1);
@@ -454,7 +477,7 @@ s32 wifi_qsap_start_softap()
     s32    retry = 4;
     FILE * fp;
 
-    LOGD("Starting Soft AP...\n");
+    ALOGD("Starting Soft AP...\n");
 
     /* Check if configuration files are present, if not create the default files */
     check_for_configuration_files();
@@ -475,19 +498,19 @@ s32 wifi_qsap_start_softap()
 
         /** Stop hostapd */
         if(0 != property_set("ctl.start", "hostapd")) {
-            LOGE("failed \n");
+            ALOGE("failed \n");
             continue;
         }
 
         sleep(1);
 
         if ( is_softap_enabled() ) {
-            LOGD("success \n");
+            ALOGD("success \n");
             return eSUCCESS;
         }
     }
 
-    LOGE("Unable to start the SoftAP\n");
+    ALOGE("Unable to start the SoftAP\n");
     return eERR_START_SAP;
 }
 
@@ -515,11 +538,11 @@ s32 wifi_qsap_stop_softap()
     s32 ret = eSUCCESS;
 
     if ( is_softap_enabled() ) {
-        LOGD("Stopping BSS ..... ");
+        ALOGD("Stopping BSS ..... ");
 
         /** Stop the BSS */
         if (eSUCCESS != (ret = wifi_qsap_stop_bss()) ) {
-            LOGE("failed \n");
+            ALOGE("failed \n");
             return ret;
         }
         sleep(1);

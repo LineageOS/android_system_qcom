@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <netinet/in.h>
@@ -42,6 +43,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <private/android_filesystem_config.h>
 
 #include "qsap_api.h"
 #include "qsap.h"
@@ -206,7 +208,7 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
     fcfg = fopen(pfile, "r");
 
     if(NULL == fcfg) {
-        LOGE("%s : unable to open file \n", __func__);
+        ALOGE("%s : unable to open file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return eERR_FILE_OPEN;
     }
@@ -288,12 +290,12 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
     s8 buf[MAX_CONF_LINE_LEN+1];
     s16 len, result = FALSE;
 
-    LOGD("cmd=%s, Val:%s, INI:%ld \n", pcmd->name, pVal, inifile);
+    ALOGD("cmd=%s, Val:%s, INI:%ld \n", pcmd->name, pVal, inifile);
 
     /** Open the configuration file */
     fcfg = fopen(pfile, "r");
     if(NULL == fcfg) {
-        LOGE("%s : unable to open file \n", __func__);
+        ALOGE("%s : unable to open file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return eERR_FILE_OPEN;
     }
@@ -305,7 +307,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
     /** Open a temporary file */
     ftmp = fopen(buf, "w+");
     if(NULL == ftmp) {
-        LOGE("%s : unable to open tmp file \n", __func__);
+        ALOGE("%s : unable to open tmp file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         fclose(fcfg);
         return eERR_FILE_OPEN;
@@ -325,7 +327,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
             if(pline[len] == '=') {
                 snprintf(buf, MAX_CONF_LINE_LEN, "%s=%s\n", pcmd->name, pVal);
                 result = TRUE;
-                LOGD("Updated:%s\n", buf);
+                ALOGD("Updated:%s\n", buf);
             }
         }
         
@@ -340,7 +342,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
         /* Add the new line at the end of file */
         snprintf(buf, MAX_CONF_LINE_LEN, "%s=%s\n", pcmd->name, pVal);
         fprintf(ftmp, "%s", buf);
-        LOGD("Adding a new line in %s file: [%s] \n", inifile ? "inifile" : "hostapd.conf", buf);
+        ALOGD("Adding a new line in %s file: [%s] \n", inifile ? "inifile" : "hostapd.conf", buf);
     }
 
     if(inifile) {
@@ -364,6 +366,21 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
 
     /** Remove the temporary file. Dont care the return value */
     unlink(buf);
+
+    /* chmod is needed because open() didn't set permisions properly */
+    if (chmod(pfile, 0660) < 0) {
+        ALOGE("Error changing permissions of %s to 0660: %s",
+                pfile, strerror(errno));
+        unlink(pfile);
+        return -1;
+    }
+
+    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pfile, AID_WIFI, strerror(errno));
+        unlink(pfile);
+        return -1;
+    }
 
     if(result == eERR_UNKNOWN)
         return eERR_FEATURE_NOT_ENABLED;
@@ -451,7 +468,7 @@ static s32 qsap_change_cfg(s8 *pfile, struct Command * pcmd, u32 status)
     /** Open the configuartion file */
     fcfg = fopen(pfile, "r");
     if(NULL == fcfg) {
-        LOGE("%s : unable to open file \n", __func__);
+        ALOGE("%s : unable to open file \n", __func__);
         return eERR_UNKNOWN;
     }
     
@@ -462,7 +479,7 @@ static s32 qsap_change_cfg(s8 *pfile, struct Command * pcmd, u32 status)
     /** Open a temporary file */
     ftmp = fopen(buf, "w");
     if(NULL == ftmp) {
-        LOGE("%s : unable to open tmp file \n", __func__);
+        ALOGE("%s : unable to open tmp file \n", __func__);
         fclose(fcfg);
         return eERR_UNKNOWN;
     }
@@ -500,12 +517,27 @@ static s32 qsap_change_cfg(s8 *pfile, struct Command * pcmd, u32 status)
 
     /** Restore the new configuration file */
     if(eERR_UNKNOWN == rename(buf, pfile)) {
-        LOGE("unable to rename the file \n");
+        ALOGE("unable to rename the file \n");
         return eERR_UNKNOWN;
     }
 
     /** Delete the temporary file */
     unlink(buf);
+
+    /* chmod is needed because open() didn't set permisions properly */
+    if (chmod(pfile, 0660) < 0) {
+        ALOGE("Error changing permissions of %s to 0660: %s",
+                pfile, strerror(errno));
+        unlink(pfile);
+        return -1;
+    }
+
+    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pfile, AID_WIFI, strerror(errno));
+        unlink(pfile);
+        return -1;
+    }
 
     return 0;
 }
@@ -585,32 +617,32 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
       * disabled in the configuration file
       */
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_DEFAULT_KEY], wep)) {
-        LOGE("%s: wep_default_key error\n", __func__);
+        ALOGE("%s: wep_default_key error\n", __func__);
         goto end;
     }
 
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_WEP_KEY0], wep)) {
-        LOGE("%s: CMD_WEP_KEY0 \n", __func__);
+        ALOGE("%s: CMD_WEP_KEY0 \n", __func__);
         goto end;
     }
 
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_WEP_KEY1], wep)) {
-        LOGE("%s: CMD_WEP_KEY1 \n", __func__);
+        ALOGE("%s: CMD_WEP_KEY1 \n", __func__);
         goto end;
     }
 
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_WEP_KEY2], wep)) {
-        LOGE("%s: CMD_WEP_KEY2 \n", __func__);
+        ALOGE("%s: CMD_WEP_KEY2 \n", __func__);
         goto end;
     }
     
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_WEP_KEY3], wep)) {
-        LOGE("%s: CMD_WEP_KEY3 \n", __func__);
+        ALOGE("%s: CMD_WEP_KEY3 \n", __func__);
         goto end;
     }
 
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_PASSPHRASE], wpa)) {
-        LOGE("%s: Passphrase error\n", __func__);
+        ALOGE("%s: Passphrase error\n", __func__);
         goto end;
     }
 
@@ -620,18 +652,18 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
         if(sec_mode == SEC_MODE_WPA_WPA2_PSK) state = ENABLE;
 
         if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_WPA_PAIRWISE], state)) {
-            LOGE("%s: WPA Pairwise\n", __func__);
+            ALOGE("%s: WPA Pairwise\n", __func__);
             goto end;
         }
     }
 
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_RSN_PAIRWISE], rsn_status)) {
-        LOGE("%s: WPA2 Pairwise\n", __func__);
+        ALOGE("%s: WPA2 Pairwise\n", __func__);
         goto end;
     }
         
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &qsap_str[STR_WPA], wpa)) {
-        LOGE("%s: WPA\n", __func__);
+        ALOGE("%s: WPA\n", __func__);
         goto end;
     }
 
@@ -725,7 +757,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     }
 
     if(NULL == fp) {
-        LOGE("%s : unable to open the file \n", __func__);
+        ALOGE("%s : unable to open the file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
@@ -737,7 +769,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
 
     /** Evaluate the allowed limit */
     if(num_macs >= MAX_ALLOWED_MAC) {
-        LOGE("%s : File is full\n", __func__);
+        ALOGE("%s : File is full\n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
         fclose(fp);
         return;
@@ -769,7 +801,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
 
             /** Evaluate with the allowed limit */
             if(num_macs == MAX_ALLOWED_MAC) {
-                LOGE("MAC file is full now.... \n");
+                ALOGE("MAC file is full now.... \n");
                 break;
             }
 
@@ -808,7 +840,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     fp = fopen(pfile, "r+");
 
     if(NULL == fp) {
-        LOGE("%s : unable to open the file \n", __func__);
+        ALOGE("%s : unable to open the file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
@@ -821,7 +853,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     ftmp = fopen(buf, "w");
 
     if(ftmp == NULL) {
-        LOGE("%s : unable to open the file \n", __func__);
+        ALOGE("%s : unable to open the file \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         fclose(fp);
         return;
@@ -898,7 +930,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
 */
 static void qsap_update_mac_list(s8 *pfile, esap_cmd_t cNum, s8 *pVal, s8 *presp, u32 *plen)
 {
-    LOGD("%s : Updating file %s \n", __func__, pfile);
+    ALOGD("%s : Updating file %s \n", __func__, pfile);
 
     switch(cNum) {
         case eCMD_ADD_TO_ALLOW:
@@ -960,7 +992,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
     /** Get the MAC allow or MAC deny file path */
     len_remain = MAX_CONF_LINE_LEN;
     if(NULL == (pfile = qsap_get_allow_deny_file_name(fconfile, &qsap_str[sNum], buf, &len_remain))) {
-        LOGE("%s:Unknown error\n", __func__);
+        ALOGE("%s:Unknown error\n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
@@ -968,7 +1000,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
     /** Open allow / deny file, and read the MAC addresses */
     fp = fopen(pfile, "r");
     if(NULL == fp) {
-        LOGE("%s: file open error\n",__func__);
+        ALOGE("%s: file open error\n",__func__);
         *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
@@ -1028,7 +1060,7 @@ static int qsap_read_mac_address(s8 *presp, u32 *plen)
     len = *plen;
 
     if(eSUCCESS != qsap_read_cfg(fIni, &qsap_str[STR_MAC_IN_INI], presp, plen, cmd_list[eCMD_MAC_ADDR].name, GET_ENABLED_ONLY)) {
-        LOGE("%s :MAC addr read failure \n",__func__);
+        ALOGE("%s :MAC addr read failure \n",__func__);
         goto end;
     }
 
@@ -1056,12 +1088,12 @@ static int qsap_read_mac_address(s8 *presp, u32 *plen)
 
     ptr++;
 
-    LOGD("MAC :%s \n", ptr);
+    ALOGD("MAC :%s \n", ptr);
     if(TRUE == isValid_MAC_address(ptr)) {
         nRet = eSUCCESS;
     }
     else {
-        LOGE("Invalid MAC in conf file \n");
+        ALOGE("Invalid MAC in conf file \n");
     }
 end:
     return nRet;
@@ -1077,7 +1109,7 @@ s8 *qsap_get_config_value(s8 *pfile, struct Command  *pcmd, s8 *pbuf, u32 *plen)
             ptr++;
         }
         else {
-            LOGE("Invalid entry, %s\n", pcmd->name);
+            ALOGE("Invalid entry, %s\n", pcmd->name);
         }
     }
 
@@ -1092,7 +1124,7 @@ static void qsap_read_wps_state(s8 *presp, u32 *plen)
 
     if(NULL == (pstate = qsap_get_config_value(pconffile, &cmd_list[eCMD_WPS_STATE], presp, &tlen))) {
         /** unable to read the wps configuration, WPS is disabled !*/
-        LOGD("%s :wps_state not in cfg file \n", __func__);
+        ALOGD("%s :wps_state not in cfg file \n", __func__);
         status = DISABLE;
     }
     else {
@@ -1121,7 +1153,7 @@ int qsap_get_operating_channel(s32 *pchan)
     }
 
     if(NULL == (pif = qsap_get_config_value(pconffile, &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         goto error;
     }
 
@@ -1129,7 +1161,7 @@ int qsap_get_operating_channel(s32 *pchan)
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        LOGE("%s :socket error \n", __func__);
+        ALOGE("%s :socket error \n", __func__);
         goto error;
     }
 
@@ -1142,20 +1174,20 @@ int qsap_get_operating_channel(s32 *pchan)
 
     ret = ioctl(sock, QCSAP_IOCTL_GET_CHANNEL, &wrq);
     if(ret < 0) {
-        LOGE("%s: ioctl failure \n",__func__);
+        ALOGE("%s: ioctl failure \n",__func__);
         close(sock);
         goto error;
     }
 
-    LOGE("Recv len :%d \n", wrq.u.data.length);
+    ALOGE("Recv len :%d \n", wrq.u.data.length);
     *pchan = *(int *)(&wrq.u.name[0]);
-    LOGE("Operating channel :%ld \n", *pchan);
+    ALOGE("Operating channel :%ld \n", *pchan);
     close(sock);
     return eSUCCESS;
 
 error:
     *pchan = 0;
-    LOGE("%s: Failed to read channel \n", __func__);
+    ALOGE("%s: Failed to read channel \n", __func__);
     return eERR_CHAN_READ;
 }
 
@@ -1174,13 +1206,13 @@ int qsap_get_sap_auto_channel_selection(s32 *pautochan)
     s32 *pchan;
 
     if(ENABLE != is_softap_enabled()) {
-        LOGE("%s :is_softap_enabled() goto error \n", __func__);
+        ALOGE("%s :is_softap_enabled() goto error \n", __func__);
         goto error;
     }
 
     if(NULL == (pif = qsap_get_config_value(pconffile,
                                  &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGD("%s :interface error \n", __func__);
+        ALOGD("%s :interface error \n", __func__);
         goto error;
     }
 
@@ -1188,7 +1220,7 @@ int qsap_get_sap_auto_channel_selection(s32 *pautochan)
 
      sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        LOGD("%s :socket error \n", __func__);
+        ALOGD("%s :socket error \n", __func__);
         goto error;
     }
 
@@ -1206,20 +1238,20 @@ int qsap_get_sap_auto_channel_selection(s32 *pautochan)
 
     ret = ioctl(sock, QCSAP_IOCTL_GETPARAM, &wrq);
     if(ret < 0) {
-        LOGE("%s: ioctl failure \n",__func__);
+        ALOGE("%s: ioctl failure \n",__func__);
         close(sock);
         goto error;
     }
 
-    LOGD("Recv len :%d \n", wrq.u.data.length);
+    ALOGD("Recv len :%d \n", wrq.u.data.length);
     *pautochan = *(int *)(&wrq.u.name[0]);
-    LOGD("Sap auto channel selection pautochan=%ld \n", *pautochan);
+    ALOGD("Sap auto channel selection pautochan=%ld \n", *pautochan);
     close(sock);
     return eSUCCESS;
 
 error:
     *pautochan = 0;
-    LOGE("%s: Failed to read sap auto channel selection\n", __func__);
+    ALOGE("%s: Failed to read sap auto channel selection\n", __func__);
     return eERR_GET_AUTO_CHAN;
 }
 
@@ -1238,7 +1270,7 @@ int qsap_set_channel_range(s8 *buf)
     sap_channel_info sap_chan_range;
     sta_channel_info sta_chan_range;
 
-    LOGE("buf :%s\n", buf);
+    ALOGE("buf :%s\n", buf);
 
     temp = buf;
     temp = strchr(buf, '=');
@@ -1249,7 +1281,7 @@ int qsap_set_channel_range(s8 *buf)
 
     if (NULL == (pif = qsap_get_config_value(pconffile,
                     &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGE("%s :interface error\n", __func__);
+        ALOGE("%s :interface error\n", __func__);
         goto error;
     }
 
@@ -1257,7 +1289,7 @@ int qsap_set_channel_range(s8 *buf)
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
-        LOGE("%s :socket error\n", __func__);
+        ALOGE("%s :socket error\n", __func__);
         goto error;
     }
 
@@ -1272,7 +1304,7 @@ int qsap_set_channel_range(s8 *buf)
                 &(sta_chan_range.staendchan), &(sta_chan_range.staband));
         memcpy(wrq.u.name, (char *)(&sta_chan_range), sizeof(sta_chan_range));
 
-        LOGE("%s :Softap is off,Send SET_CHANNEL_RANGE over sta interface\n",
+        ALOGE("%s :Softap is off,Send SET_CHANNEL_RANGE over sta interface\n",
                 __func__);
         ret = ioctl(sock, WLAN_PRIV_SET_THREE_INT_GET_NONE, &wrq);
     } else {
@@ -1281,24 +1313,24 @@ int qsap_set_channel_range(s8 *buf)
                   &(sap_chan_range.endchan), &(sap_chan_range.band));
           memcpy(wrq.u.name, (char *)(&sap_chan_range), sizeof(sap_chan_range));
 
-          LOGE("%s :SAP is on,Send SET_CHANNEL_RANGE over softap interface\n",
+          ALOGE("%s :SAP is on,Send SET_CHANNEL_RANGE over softap interface\n",
                     __func__);
           ret = ioctl(sock, QCSAP_IOCTL_SET_CHANNEL_RANGE, &wrq);
     }
 
     if (ret < 0) {
-        LOGE("%s: ioctl failure\n", __func__);
+        ALOGE("%s: ioctl failure\n", __func__);
         close(sock);
         goto error;
     }
 
-    LOGE("Recv len :%d\n", wrq.u.data.length);
+    ALOGE("Recv len :%d\n", wrq.u.data.length);
 
     close(sock);
     return eSUCCESS;
 
 error:
-    LOGE("%s: Failed to set channel range\n", __func__);
+    ALOGE("%s: Failed to set channel range\n", __func__);
     return eERR_SET_CHAN_RANGE;
 }
 
@@ -1310,7 +1342,7 @@ int qsap_read_channel(s8 *pfile, struct Command *pcmd, s8 *presp, u32 *plen, s8 
 
    if(eSUCCESS == qsap_get_operating_channel(&chan)) {
             *plen = snprintf(presp, len, "%s %s=%lu", SUCCESS, pcmd->name, chan);
-             LOGD("presp :%s\n", presp);
+             ALOGD("presp :%s\n", presp);
    } else {
           *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
    }
@@ -1325,11 +1357,11 @@ int qsap_read_auto_channel(struct Command *pcmd, s8 *presp, u32 *plen)
     u32  len = *plen;
     int autochan;
 
-    LOGE("%s :\n", __func__);
+    ALOGE("%s :\n", __func__);
 
     if (eSUCCESS == qsap_get_sap_auto_channel_selection(&pautochan)) {
           *plen = snprintf(presp, len, "%s autochannel=%lu", SUCCESS, pautochan);
-          LOGE("presp :%s\n", presp);
+          ALOGE("presp :%s\n", presp);
     } else {
           *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
     }
@@ -1379,20 +1411,20 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
     }
 
     if(NULL == (pif = qsap_get_config_value(pconffile, &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         goto error;
     }
     interface[len] = '\0';
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        LOGE("%s :socket failure \n", __func__);
+        ALOGE("%s :socket failure \n", __func__);
         goto error;
     }
 
     pbuf = (s8 *)malloc((MAX_STA_ALLOWED * 6) + 8);
     if(NULL == pbuf) {
-        LOGE("%s :No memory \n", __func__);
+        ALOGE("%s :No memory \n", __func__);
         close(sock);
         goto error;
     }
@@ -1406,7 +1438,7 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
 
     ret = ioctl(sock, QCSAP_IOCTL_ASSOC_STA_MACADDR, &wrq);
     if(ret < 0) {
-        LOGE("%s :ioctl failure \n", __func__);
+        ALOGE("%s :ioctl failure \n", __func__);
         free(pbuf);
         close(sock);
         goto error;
@@ -1479,20 +1511,20 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
     }
 
     if(NULL == (pif = qsap_get_config_value(pconffile, &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         goto error;
     }
     interface[len] = '\0';
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        LOGE("%s :socket failure \n", __func__);
+        ALOGE("%s :socket failure \n", __func__);
         goto error;
     }
 
     pbuf = (s8 *)malloc(MAX_RESP_LEN);
     if(NULL == pbuf) {
-        LOGE("%s :No memory \n", __func__);
+        ALOGE("%s :No memory \n", __func__);
         close(sock);
         goto error;
     }
@@ -1504,7 +1536,7 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
 
     ret = ioctl(sock, QCSAP_IOCTL_AP_STATS, &wrq);
     if(ret < 0) {
-        LOGE("%s :ioctl failure \n", __func__);
+        ALOGE("%s :ioctl failure \n", __func__);
         free(pbuf);
         close(sock);
         goto error;
@@ -1535,7 +1567,7 @@ void qsap_read_autoshutoff(s8 *presp, u32 *plen)
 
     if(NULL == (ptime = qsap_get_config_value(fIni, &qsap_str[STR_AP_AUTOSHUTOFF], presp, &tlen))) {
         /** unable to read the AP shutoff time */
-        LOGE("%s :Failed to read AP shutoff time\n", __func__);
+        ALOGE("%s :Failed to read AP shutoff time\n", __func__);
     }
     else {
         time = atoi(ptime);
@@ -1797,7 +1829,7 @@ static s16 is_valid_wep_key(s8 *pwep, s8 *pkey, s16 len)
                 weplen--;
                 while(weplen--) {
                     if(0 == isascii(pwep[weplen])) {
-                        LOGD("%c not ascii \n", pwep[weplen]);
+                        ALOGD("%c not ascii \n", pwep[weplen]);
                         return FALSE;
                     }
                 }
@@ -1831,7 +1863,7 @@ s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
     fcfg = fopen(pdefault, "r");
 
     if(NULL == fcfg) {
-        LOGE("%s : unable to open file \n", __func__);
+        ALOGE("%s : unable to open file \n", __func__);
         return eERR_FILE_OPEN;
     }
 
@@ -1841,7 +1873,7 @@ s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
 
     ftmp = fopen(buf, "w+");
     if(NULL == ftmp) {
-        LOGE("%s : unable to open file \n", __func__);
+        ALOGE("%s : unable to open file \n", __func__);
         fclose(fcfg);
         return eERR_FILE_OPEN;
     }
@@ -1878,19 +1910,19 @@ void qsap_del_ctrl_iface(void)
     len = CTRL_IFACE_PATH_LEN;
 
     if(NULL == (pcif = qsap_get_config_value(pconffile, &qsap_str[STR_CTRL_INTERFACE], dst_path, &len))) {
-        LOGE("%s :ctrl_iface path error \n", __func__);
+        ALOGE("%s :ctrl_iface path error \n", __func__);
         goto error;
     }
 
     len = 64;
 
     if(NULL == (pif = qsap_get_config_value(pconffile, &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         goto error;
     }
 
     if((int)sizeof(path) <= snprintf(path, sizeof(path)-1, "%s/%s", pcif, pif)) {
-        LOGE("Iface path : error, %s \n", path);
+        ALOGE("Iface path : error, %s \n", path);
         goto error;
     }
 
@@ -1919,32 +1951,32 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
 #define RESP_BUF_SIZE (80)
     ptr = malloc(RESP_BUF_SIZE);
     if(NULL == ptr) {
-        LOGE("%s :No memory \n", __func__);
+        ALOGE("%s :No memory \n", __func__);
         return ret;
     }
     
     if(NULL == (pcif = qsap_get_config_value(pconffile, &qsap_str[STR_CTRL_INTERFACE], dst_path, &len))) {
-        LOGE("%s :ctrl_iface path error \n", __func__);
+        ALOGE("%s :ctrl_iface path error \n", __func__);
         goto error;
     }
 
     len = 64;
 
     if(NULL == (pif = qsap_get_config_value(pconffile, &qsap_str[STR_INTERFACE], interface, &len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         goto error;
     }
 
     if(CTRL_IFACE_PATH_LEN <= snprintf(ptr, CTRL_IFACE_PATH_LEN-1, "%s/%s", pcif, pif)) {
-        LOGE("Iface path : error, %s \n", ptr);
+        ALOGE("Iface path : error, %s \n", ptr);
         goto error;
     }
 
-    LOGD("Connect to :%s\n", ptr);
+    ALOGD("Connect to :%s\n", ptr);
 
     sock = socket(PF_UNIX, SOCK_DGRAM, 0);
     if(sock < 0) {
-        LOGE("%s :Socket error \n", __func__);
+        ALOGE("%s :Socket error \n", __func__);
         goto error;
     }
 
@@ -1954,23 +1986,23 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
     ret = bind(sock, (struct sockaddr *)&cli, sizeof(cli));
 
     if(ret < 0) {
-        LOGE("Bind Failure\n");
+        ALOGE("Bind Failure\n");
         goto close_ret;
     }
     
     ser.sun_family = AF_UNIX;
     snprintf(ser.sun_path, sizeof(ser.sun_path), "%s", ptr);
-    LOGD("Connect to: %s,(%d)\n", ser.sun_path, sock);
+    ALOGD("Connect to: %s,(%d)\n", ser.sun_path, sock);
 
     ret = connect(sock, (struct sockaddr *)&ser, sizeof(ser));
     if(ret < 0) {
-        LOGE("Connect Failure...\n");
+        ALOGE("Connect Failure...\n");
         goto close_ret;
     }
     
     ret = send(sock, pcmd, strlen(pcmd), 0);
     if(ret < 0) {
-        LOGE("Unable to send cmd to hostapd \n");
+        ALOGE("Unable to send cmd to hostapd \n");
         goto close_ret;
     }
 
@@ -1991,13 +2023,13 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
             ret = recv(sock, ptr, len, 0);
 
             if(ret < 0) {
-                LOGE("%s: recv() failed \n", __func__);
+                ALOGE("%s: recv() failed \n", __func__);
                 goto close_ret;
             }
 
             if((ret > 0) && (ptr[0] == '<')) {
                 ptr[ret] = 0;
-                LOGE("Not the expected response...\n: %s", ptr);
+                ALOGE("Not the expected response...\n: %s", ptr);
                 retry_cnt--;
                 if(retry_cnt)
                     continue;
@@ -2006,7 +2038,7 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
 
             ptr[len] = '\0';
             if(!strncmp(ptr, "FAIL", 4)) {
-                LOGE("Command failed in hostapd \n");
+                ALOGE("Command failed in hostapd \n");
                 goto close_ret;
             }
             else {
@@ -2014,7 +2046,7 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
             }
         }
         else {
-            LOGE("%s: Select failed \n", __func__);
+            ALOGE("%s: Select failed \n", __func__);
             goto close_ret;
         }
     }
@@ -2049,7 +2081,7 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
     qsap_write_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], pwps_state, presp, &tlen, HOSTAPD_CONF_QCOM_FILE);
 
     if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], status)) {
-        LOGE("%s: Failed to enable %s\n", __func__, cmd_list[eCMD_WPS_STATE].name);
+        ALOGE("%s: Failed to enable %s\n", __func__, cmd_list[eCMD_WPS_STATE].name);
         goto error;
     }
 
@@ -2060,7 +2092,7 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
     
     for(i=eCMD_UUID; i<=eCMD_UPC; i++) {
         if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &cmd_list[i], status)) {
-            LOGE("%s: failed to set %s\n", __func__, cmd_list[i].name);
+            ALOGE("%s: failed to set %s\n", __func__, cmd_list[i].name);
             goto error;
         }
     }
@@ -2103,7 +2135,7 @@ static void qsap_config_wps_method(s8 *pVal, s8 *presp, u32 *plen)
     SKIP_BLANK_SPACE(ptr);
 
     if( (value == WPS_CONFIG_PIN) && (*ptr == '\0') ){
-        LOGE("%s :Invalid command \n", __func__);
+        ALOGE("%s :Invalid command \n", __func__);
         *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
         return;
     }
@@ -2112,7 +2144,7 @@ static void qsap_config_wps_method(s8 *pVal, s8 *presp, u32 *plen)
         snprintf(buf, 64, "WPS_PBC");
     else {
         if(strlen(ptr) < WPS_KEY_LEN) {
-            LOGD("%s :Invalid WPS key length\n", __func__);
+            ALOGD("%s :Invalid WPS key length\n", __func__);
             *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
             return;
         }
@@ -2196,7 +2228,7 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
     }
 
     if(NULL == (pif = qsap_get_config_value(pconffile, &qsap_str[STR_INTERFACE], pbuf, &len))) {
-        LOGE("%s :interface error \n", __func__);
+        ALOGE("%s :interface error \n", __func__);
         goto end;
     }
 
@@ -2204,14 +2236,14 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        LOGE("%s: socket failure \n", __func__);
+        ALOGE("%s: socket failure \n", __func__);
         goto end;
     }
 
     strncpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
     
     if(TRUE != qsap_get_mac_in_bytes(pVal, pbuf)) {
-        LOGE("%s: Invalid input \n", __func__);
+        ALOGE("%s: Invalid input \n", __func__);
         close(sock);
         goto end;    
     }
@@ -2222,7 +2254,7 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
 
     ret = ioctl(sock, QCSAP_IOCTL_DISASSOC_STA, &wrq);
     if(ret < 0) {
-        LOGE("%s: ioctl failure \n", __func__);
+        ALOGE("%s: ioctl failure \n", __func__);
     }
     close(sock);
 
@@ -2252,7 +2284,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         /** Change the operating mode to 'G' */
         ulen = *tlen;
         if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_G], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
-            LOGE("%s :Unable to update the operating mode \n", __func__);
+            ALOGE("%s :Unable to update the operating mode \n", __func__);
             return eERR_UNKNOWN;
         }
     }
@@ -2263,7 +2295,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         /** Change the operating mode to 'B' */
         ulen = *tlen;
         if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_B], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
-            LOGE("%s :Unable to update the operating mode \n", __func__);
+            ALOGE("%s :Unable to update the operating mode \n", __func__);
             return eERR_UNKNOWN;
         }
     }
@@ -2272,7 +2304,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         /** Change the operating mode to 'A' */
         ulen = *tlen;
         if(eSUCCESS != qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], hw_mode[HW_MODE_A], tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE)) {
-            LOGE("%s :Unable to update the operating mode \n", __func__);
+            ALOGE("%s :Unable to update the operating mode \n", __func__);
             return eERR_UNKNOWN;
         }
     }
@@ -2331,14 +2363,14 @@ static int qsap_set_data_rate(s32 drate_idx, s8 *presp, u32 *plen)
     int ret = eERR_UNKNOWN;
 
     if(TRUE != IS_VALID_DATA_RATE_IDX(drate_idx)) {
-        LOGE("%s :Invalid rate index \n", __func__);
+        ALOGE("%s :Invalid rate index \n", __func__);
         goto end;
     }
 
     ulen = *plen;
     /** Read the current operating mode */
     if(NULL == (pmode = qsap_get_config_value(pconffile, &cmd_list[eCMD_HW_MODE], presp, &ulen))) {
-        LOGE("%s :Unable to read mode \n", __func__);
+        ALOGE("%s :Unable to read mode \n", __func__);
         goto end;
     }
 
@@ -2346,7 +2378,7 @@ static int qsap_set_data_rate(s32 drate_idx, s8 *presp, u32 *plen)
     if(((!strcmp(pmode, hw_mode[HW_MODE_B])) && (drate_idx > B_MODE_MAX_DATA_RATE_IDX)) || 
         ((!strcmp(pmode, hw_mode[HW_MODE_G]) || (!strcmp(pmode, hw_mode[HW_MODE_G_ONLY]))) && 
         (drate_idx > G_ONLY_MODE_MAX_DATA_RATE_IDX))) {
-        LOGE("%s :Invalid rate index \n", __func__);
+        ALOGE("%s :Invalid rate index \n", __func__);
         goto end;
     }
    
@@ -2400,7 +2432,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     cNum = qsap_get_cmd_num(pcmd);
     if(cNum == eCMD_INVALID) {
         *plen = snprintf(presp, *plen, "%s", ERR_INVALID_ARG);
-        LOGE("Invalid command number :%d\n", cNum);
+        ALOGE("Invalid command number :%d\n", cNum);
         return;
     }
 
@@ -2414,7 +2446,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     pVal++;
 
     if((cNum != eCMD_COMMIT) && (cNum != eCMD_RESET_TO_DEFAULT)) {
-        LOGE("Cmd: %s Argument :%s \n", cmd_list[cNum].name, pVal);
+        ALOGE("Cmd: %s Argument :%s \n", cmd_list[cNum].name, pVal);
     }
 
     switch(cNum) {
@@ -2603,7 +2635,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             ulen = MAX_FILE_PATH_LEN;
             if(SEC_MODE_WEP != qsap_read_security_mode(pcfg, filename, &ulen)) {
                 if(eERR_UNKNOWN == qsap_change_cfg(pcfg, &cmd_list[cNum], 0)) {
-                    LOGE("%s: eCMD_DEFAULT_KEY \n", __func__);
+                    ALOGE("%s: eCMD_DEFAULT_KEY \n", __func__);
                     goto error;
                 }
             }
@@ -2622,7 +2654,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             }
 
             if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &qsap_str[STR_HT_80211N], value)) {
-                LOGE("%s: unable to update 802.11 HT\n", __func__);
+                ALOGE("%s: unable to update 802.11 HT\n", __func__);
                 goto error;
             }
 
@@ -2642,7 +2674,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             ulen = MAX_FILE_PATH_LEN;
             if(SEC_MODE_WEP != qsap_read_security_mode(pcfg, filename, &ulen)) {
                 if(eERR_UNKNOWN == qsap_change_cfg(pcfg, &cmd_list[cNum], 0)) {
-                    LOGE("%s: CMD_WEP_KEY0 \n", __func__);
+                    ALOGE("%s: CMD_WEP_KEY0 \n", __func__);
                     goto error;
                 }
             }
@@ -2651,7 +2683,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
 
         case eCMD_RESET_AP:
             value = atoi(pVal);
-            LOGE("Reset :%ld \n", value);
+            ALOGE("Reset :%ld \n", value);
             if(SAP_RESET_BSS == value) {
                 status = wifi_qsap_stop_softap();
                 if(status == eSUCCESS) {
@@ -2893,7 +2925,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             ini = INI_CONF_FILE;
             break;
         case eCMD_SET_CHANNEL_RANGE:
-            LOGE("eCMD_SET_CHANNEL_RANGE pcmd :%s\n", pcmd);
+            ALOGE("eCMD_SET_CHANNEL_RANGE pcmd :%s\n", pcmd);
             value = qsap_set_channel_range(pcmd);
            *plen = snprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS :
                              ERR_UNKNOWN);
@@ -2904,7 +2936,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     }
 
     if(ini == INI_CONF_FILE) {
-        LOGD("WRITE TO INI FILE :%s\n", qsap_str[cNum].name);
+        ALOGD("WRITE TO INI FILE :%s\n", qsap_str[cNum].name);
         qsap_write_cfg(fIni, &qsap_str[cNum], pVal, presp, plen, ini);
     }
     else {
@@ -2933,7 +2965,7 @@ error:
 */
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 {
-    LOGD("CMD INPUT  [%s][%lu]\n", pcmd, *plen);
+    ALOGD("CMD INPUT  [%s][%lu]\n", pcmd, *plen);
     /* Skip any blank spaces */
     SKIP_BLANK_SPACE(pcmd);
 
@@ -2951,7 +2983,7 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
         *plen = snprintf(presp, *plen, "%s", ERR_INVALIDREQ);
     }
 
-    LOGD("CMD OUTPUT [%s]\nlen :%lu\n\n", presp, *plen);
+    ALOGD("CMD OUTPUT [%s]\nlen :%lu\n\n", presp, *plen);
     
     return;
 }
@@ -2980,10 +3012,10 @@ int qsapsetSoftap(int argc, char *argv[])
     int i;
     int sec = SEC_MODE_NONE;
 
-    LOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
+    ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
 
     for ( i=0; i<argc;i++) {
-        LOGD("ARG: %d - %s\n", i+1, argv[i]);
+        ALOGD("ARG: %d - %s\n", i+1, argv[i]);
     }
 
     /** set SSID */
@@ -2996,7 +3028,7 @@ int qsapsetSoftap(int argc, char *argv[])
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
     if(strncmp("success", respbuf, rlen) != 0) {
-        LOGE("Failed to set ssid\n");
+        ALOGE("Failed to set ssid\n");
         return eERR_UNKNOWN;
     }
 
@@ -3026,7 +3058,7 @@ int qsapsetSoftap(int argc, char *argv[])
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
     if(strncmp("success", respbuf, rlen) != 0) {
-        LOGE("Failed to set security mode\n");
+        ALOGE("Failed to set security mode\n");
         return -1;
     }
 
@@ -3045,7 +3077,7 @@ int qsapsetSoftap(int argc, char *argv[])
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
     if(strncmp("success", respbuf, rlen) != 0) {
-        LOGE("Failed to set passphrase \n");
+        ALOGE("Failed to set passphrase \n");
         return -1;
     }
 
@@ -3056,7 +3088,7 @@ int qsapsetSoftap(int argc, char *argv[])
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
         if(strncmp("success", respbuf, rlen) != 0) {
-            LOGE("Failed to set channel \n");
+            ALOGE("Failed to set channel \n");
             return -1;
 	}
 
@@ -3069,7 +3101,7 @@ int qsapsetSoftap(int argc, char *argv[])
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
     if(strncmp("success", respbuf, rlen) != 0) {
-        LOGE("Failed to COMMIT \n");
+        ALOGE("Failed to COMMIT \n");
         return -1;
     }
 
@@ -3116,8 +3148,8 @@ void qsap_set_ini_filename(void)
 {
     if (property_get("wlan.driver.config", ini_file, NULL)) {
         fIni = ini_file;
-        LOGE("INI FILE PROP PRESENT %s\n", fIni);
+        ALOGE("INI FILE PROP PRESENT %s\n", fIni);
     } else
-        LOGE("INI FILE PROP NOT PRESENT: Use default path %s\n", fIni);
+        ALOGE("INI FILE PROP NOT PRESENT: Use default path %s\n", fIni);
     return;
 }

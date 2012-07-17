@@ -35,7 +35,7 @@
         int rc; \
         rc = snprintf(resp, sizeof(resp), "failure %s:%s",msg, code); \
         if ( rc == sizeof(resp)) resp[sizeof(resp)-1] = 0; \
-            LOGE("%s",resp); \
+            ALOGE("%s",resp); \
     }
 
 static struct sockaddr_nl    rtnl_local;
@@ -47,7 +47,7 @@ static void softap_handle_custom_event(char * buf, int len)
 {
     if (strncmp(buf, "AUTO-SHUT.indication ", strlen("AUTO-SHUT.indication ")) == 0)
     {
-        LOGD("EVENT: Custom Event\n");
+        ALOGD("EVENT: Custom Event\n");
         snprintf(evt_buf, sizeof(evt_buf), "105 AP Shutdown");
     }
 }
@@ -78,21 +78,21 @@ static void softap_handle_wireless_event(char *atr, int atrlen)
         if (iwe.len <= IW_EV_LCP_LEN)
             break;
 
-        LOGD("Received Wireless Event: cmd=0x%x len=%d", iwe.cmd, iwe.len);
+        ALOGD("Received Wireless Event: cmd=0x%x len=%d", iwe.cmd, iwe.len);
 
         switch (iwe.cmd) {
             case IWEVEXPIRED:
-                LOGD("EVENT: IWEVEXPIRED\n");
+                ALOGD("EVENT: IWEVEXPIRED\n");
                 softap_handle_disassociated_event(iwe.u.addr.sa_data);
                 break;
 
             case IWEVREGISTERED:
-                LOGD("EVENT: IWEVREGISTERED\n");
+                ALOGD("EVENT: IWEVREGISTERED\n");
                 softap_handle_associated_event(iwe.u.addr.sa_data);
                 break;
 
             case IWEVCUSTOM:
-                LOGD("EVENT: Custom Event\n");
+                ALOGD("EVENT: Custom Event\n");
 				softap_handle_custom_event(buffer + len + IW_EV_POINT_LEN, iwe.u.data.length);
                 break;
 
@@ -113,12 +113,12 @@ void softap_handle_rtm_link_event(struct nlmsghdr *hdr)
     int    atr_len;
 
     if ((hdr->nlmsg_len - MSGHDRLEN) < IFINFOLEN) {
-        LOGD("Message Length Problem1");
+        ALOGD("Message Length Problem1");
         return;
     }
 
     if ((atr_len = hdr->nlmsg_len - NLMSG_ALIGN(IFINFOLEN)) < 0) {
-        LOGD("Message Length Problem2");
+        ALOGD("Message Length Problem2");
         return;
     }
 
@@ -156,7 +156,7 @@ static void softap_handle_iface_event(void)
 
         if (cnt <= 0) {
             buffer[0] = '\0';
-            LOGD("recvfrom failed");
+            ALOGD("recvfrom failed");
             return;
         }
 
@@ -193,7 +193,7 @@ static inline int softap_rtnl_wait(void)
     int        oldfd, ret;
 
     if (rtnl_fd < 0) {
-        LOGD("Netlink Socket Not Available");
+        ALOGD("Netlink Socket Not Available");
         return -1;
     }
 
@@ -207,10 +207,10 @@ static inline int softap_rtnl_wait(void)
 
     if (ret < 0) {
         /* Error Occurred */
-        LOGD("Select on Netlink Socket Failed");
+        ALOGD("Select on Netlink Socket Failed");
         return ret;
     } else if (!ret) {
-        LOGD("Select on Netlink Socket Timed Out");
+        ALOGD("Select on Netlink Socket Timed Out");
         /* Timeout Occurred */
         return -1;
     }
@@ -235,7 +235,7 @@ static int softap_rtnl_open(void)
     rtnl_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 
     if (rtnl_fd < 0) {
-        LOGE("open netlink socket failed");
+        ALOGE("open netlink socket failed");
         return -1;
     }
 
@@ -245,7 +245,7 @@ static int softap_rtnl_open(void)
 
     if (bind(rtnl_fd, (struct sockaddr*)&rtnl_local,
                 sizeof(rtnl_local)) < 0) {
-        LOGE("bind netlink socket failed");
+        ALOGE("bind netlink socket failed");
         return -1;
     }
 
@@ -253,17 +253,17 @@ static int softap_rtnl_open(void)
 
     if (getsockname(rtnl_fd, (struct sockaddr*)&rtnl_local,
             (socklen_t *) &addr_len) < 0) {
-        LOGE("getsockname failed");
+        ALOGE("getsockname failed");
         return -1;
     }
 
     if (addr_len != sizeof(rtnl_local)) {
-        LOGE("Wrong address length %d\n", addr_len);
+        ALOGE("Wrong address length %d\n", addr_len);
         return -1;
     }
 
     if (rtnl_local.nl_family != AF_NETLINK) {
-        LOGE("Wrong address family %d\n", rtnl_local.nl_family);
+        ALOGE("Wrong address family %d\n", rtnl_local.nl_family);
         return -1;
     }
 
@@ -299,7 +299,7 @@ JNIEXPORT jboolean JNICALL
                         (JNIEnv *env, jobject obj)
 {
     if (softap_rtnl_open() != 0) {
-        LOGD("Netlink Open Fail");
+        ALOGD("Netlink Open Fail");
         return JNI_FALSE;
     }
 
@@ -328,7 +328,7 @@ JNIEXPORT jstring JNICALL
         goto end;
     }
 
-    LOGD("Received Command: %s\n", pcmd);
+    ALOGD("Received Command: %s\n", pcmd);
 
     if ((strlen(cmd) + strlen(pcmd)) > sizeof(cmd)) {
         UPDATE_ERROR_CODE("Command length is larger than MAX_CMD_SIZE", "");
@@ -349,7 +349,7 @@ JNIEXPORT jstring JNICALL
                 goto end;
             }
 
-            LOGW("Unable to connect to netd, retrying ...\n");
+            ALOGW("Unable to connect to netd, retrying ...\n");
             sleep(1);
         } else {
             break;
@@ -392,8 +392,8 @@ JNIEXPORT jstring JNICALL
                     (!strcmp(code, "failure")) ) {
                 done=1;
             } else {
-                LOGW("Code(%s)\n", code);
-                LOGW("Ignore messages : %s\n", resp);
+                ALOGW("Code(%s)\n", code);
+                ALOGW("Ignore messages : %s\n", resp);
             }
         }
     }
