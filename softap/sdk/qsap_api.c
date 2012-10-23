@@ -3115,7 +3115,7 @@ void check_for_configuration_files(void)
     /* Check if configuration files are present, if not create the default files */
     mkdir("/data/hostapd", 0771);
 
-    /* If configuration file does not exhist copy the default file */
+    /* If configuration file does not exist copy the default file */
     if ( NULL == (fp = fopen(CONFIG_FILE, "r")) ) {
         wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
     }
@@ -3123,19 +3123,17 @@ void check_for_configuration_files(void)
         fclose(fp);
     }
 
-    /* If Accept MAC list file does not exhist, create an empty file */
+    /* If Accept MAC list file does not exist, copy the default file */
     if ( NULL == (fp = fopen(ACCEPT_LIST_FILE, "r")) ) {
-        fp = fopen(ACCEPT_LIST_FILE, "w+");
-        if ( fp ) fclose(fp);
+        wifi_qsap_reset_to_default(ACCEPT_LIST_FILE, DEFAULT_ACCEPT_LIST_FILE_PATH);
     }
     else {
         fclose(fp);
     }
 
-    /* If deny MAC list file does not exhist, create an empty file */
+    /* If deny MAC list file does not exist, copy the default file */
     if ( NULL == (fp = fopen(DENY_LIST_FILE, "r")) ) {
-        fp = fopen(DENY_LIST_FILE, "w+");
-       if ( fp )  fclose(fp);
+        wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
     }
     else {
         fclose(fp);
