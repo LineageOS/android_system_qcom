@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -10,7 +10,7 @@
  *    copyright notice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
- *  * Neither the name of Code Aurora Forum, Inc. nor the names of its
+ *  * Neither the name of The Linux Foundation, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
 
@@ -2997,12 +2997,12 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 #define CMD_BUF_LEN          255
 
 /** Command input
-    argv[4] = SSID,
-    argv[5] = SEC,
-    argv[6] = 12345,
-    argv[7] = CHANNEL
-    argv[8] = PREAMBLE,
-    argv[9] = MAX_SCB,
+    argv[3] = SSID,
+    argv[4] = SEC,
+    argv[5] = 12345,
+    argv[6] = CHANNEL
+    argv[7] = PREAMBLE,
+    argv[8] = MAX_SCB,
 */
 int qsapsetSoftap(int argc, char *argv[])
 {
@@ -3019,8 +3019,8 @@ int qsapsetSoftap(int argc, char *argv[])
     }
 
     /** set SSID */
-    if(argc > 4) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set ssid=%s",argv[4]);
+    if(argc > 3) {
+        snprintf(cmdbuf, CMD_BUF_LEN, "set ssid=%s",argv[3]);
     }
     else {
         snprintf(cmdbuf, CMD_BUF_LEN, "set ssid=%s_%d", DEFAULT_SSID, rand());
@@ -3034,19 +3034,19 @@ int qsapsetSoftap(int argc, char *argv[])
 
     /** Security */
     rlen = RECV_BUF_LEN;
-    if(argc > 5) {
+    if(argc > 4) {
 
         /**TODO : need to identify the SEC strings for "wep", "wpa", "wpa2" */
-        if(!strcmp(argv[5], "open"))
+        if(!strcmp(argv[4], "open"))
             sec = SEC_MODE_NONE;
 
-        else if(!strcmp(argv[5], "wep"))
+        else if(!strcmp(argv[4], "wep"))
             sec = SEC_MODE_WEP;
 
-        else if(!strcmp(argv[5], "wpa-psk"))
+        else if(!strcmp(argv[4], "wpa-psk"))
             sec = SEC_MODE_WPA_PSK;
 
-        else if(!strcmp(argv[5], "wpa2-psk"))
+        else if(!strcmp(argv[4], "wpa2-psk"))
             sec = SEC_MODE_WPA2_PSK;
 
         snprintf(cmdbuf, CMD_BUF_LEN, "set security_mode=%d",sec);
@@ -3065,10 +3065,10 @@ int qsapsetSoftap(int argc, char *argv[])
     /** Key -- passphrase */
     rlen = RECV_BUF_LEN;
     if ( (sec == SEC_MODE_WPA_PSK) || (sec == SEC_MODE_WPA2_PSK) ) {
-        if(argc > 6) {
+        if(argc > 5) {
             /* If the input passphrase is more than 63 characters, consider first 63 characters only*/
-            if ( strlen(argv[6]) > 63 ) argv[6][63] = '\0';
-            snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[6]);
+            if ( strlen(argv[5]) > 63 ) argv[5][63] = '\0';
+            snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[5]);
         }
         else {
             snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s", DEFAULT_PASSPHRASE);
@@ -3083,8 +3083,8 @@ int qsapsetSoftap(int argc, char *argv[])
 
     /** channel */
     rlen = RECV_BUF_LEN;
-    if(argc > 7) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[7]));
+    if(argc > 6) {
+        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[6]));
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
         if(strncmp("success", respbuf, rlen) != 0) {

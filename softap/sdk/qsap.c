@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -10,7 +10,7 @@
  *    copyright notice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
- *  * Neither the name of Code Aurora Forum, Inc. nor the names of its
+ *  * Neither the name of The Linux Foundation, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
 
@@ -34,10 +34,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/wireless.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -252,7 +252,6 @@ end:
     return ret;
 }
 
-
 void qsap_send_module_down_indication(void)
 {
     int s, ret;
@@ -435,15 +434,26 @@ s32 wifi_qsap_stop_bss(void)
 
 s32 is_softap_enabled(void)
 {
-    s8    stat[32] = {0};
+    FILE *fp;
+    char buf[1024];
 
-    if ( property_get("wifi.hostapd", stat, NULL) &&
-                            (strcmp(stat, "1") == 0)) {
-        ALOGD("HOSTAPD enabled \n");
-        return ENABLE;
+    fp = popen("ps", "r");
+    if (fp == NULL) {
+       ALOGE("Failed to open file");
+       return eERR_UNKNOWN;
     }
 
-    ALOGD("HOSTAPD disabled \n");
+    while (fgets(buf, sizeof(buf)-1, fp) != NULL) {
+       if(NULL !=(strstr(buf,"hostapd")))
+       {
+           pclose(fp);
+           ALOGD("HOSTAPD enabled\n");
+           return ENABLE;
+       }
+    }
+
+    ALOGD("HOSTAPD disabled\n");
+    pclose(fp);
     return DISABLE;
 }
 
