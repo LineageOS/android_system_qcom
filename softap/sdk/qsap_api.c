@@ -2241,16 +2241,12 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
     }
 
     strncpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
-    
-    if(TRUE != qsap_get_mac_in_bytes(pVal, pbuf)) {
+
+    if (TRUE != qsap_get_mac_in_bytes(pVal, (char *) &wrq.u)) {
         ALOGE("%s: Invalid input \n", __func__);
         close(sock);
-        goto end;    
+        goto end;
     }
-
-    wrq.u.data.length = MAC_ADDR_LEN_INT;
-    wrq.u.data.pointer = (void *)pbuf;
-    wrq.u.data.flags = 0;
 
     ret = ioctl(sock, QCSAP_IOCTL_DISASSOC_STA, &wrq);
     if(ret < 0) {
