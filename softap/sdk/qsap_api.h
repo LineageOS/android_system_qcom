@@ -322,6 +322,7 @@ typedef enum esap_cmd {
     eCMD_IEEE80211N          = 61,
     eCMD_SET_CHANNEL_RANGE   = 62,
     eCMD_GET_AUTO_CHANNEL    = 63,
+    eCMD_IEEE80211W          = 64,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
