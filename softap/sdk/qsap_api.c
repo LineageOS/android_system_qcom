@@ -184,7 +184,7 @@ char *hw_mode[HW_MODE_UNKNOWN] = {
 /** configuration file path */
 char *pconffile = CONFIG_FILE; 
 char *fIni =  WIFI_DRIVER_CONF_FILE;
-s8 ini_file[64] = {0};
+s8 ini_file[PROPERTY_VALUE_MAX] = {0};
 
 /**
  * @brief
