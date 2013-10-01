@@ -1256,6 +1256,57 @@ error:
     return eERR_GET_AUTO_CHAN;
 }
 
+
+/**
+ *    Get the mode of operation.
+ */
+int qsap_get_mode(s32 *pmode)
+{
+    int sock;
+    struct iwreq wrq;
+    s8 interface[MAX_CONF_LINE_LEN];
+    u32 len = MAX_CONF_LINE_LEN;
+    s8 *pif;
+    int ret;
+    sap_auto_channel_info sap_autochan_info;
+    s32 *pchan;
+
+    *pmode = -1;
+    if(NULL == (pif = qsap_get_config_value(pconffile,
+                                 &qsap_str[STR_INTERFACE], interface, &len))) {
+        ALOGD("%s :interface error \n", __func__);
+        goto error;
+    }
+
+    interface[len] = '\0';
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock < 0) {
+        ALOGD("%s :socket error \n", __func__);
+        goto error;
+    }
+
+    memset(&wrq, 0, sizeof(wrq));
+    strlcpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
+
+    ret = ioctl(sock, SIOCGIWMODE, &wrq);
+    if(ret < 0) {
+        ALOGE("%s: ioctl failure \n",__func__);
+        close(sock);
+        goto error;
+    }
+
+    *pmode = *(s32 *)(&wrq.u.mode);
+    ALOGE("%s: ioctl Get Mode = %d \n",__func__, *pmode);
+    close(sock);
+    return eSUCCESS;
+
+error:
+    *pmode = -1;
+    ALOGE("%s: (Failure) ioctl Get Mode = %d \n",__func__, *pmode);
+    return eERR_UNKNOWN;
+}
+
 /**
  *    Set the channel Range for soft AP.
  */
