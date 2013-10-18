@@ -434,26 +434,22 @@ s32 wifi_qsap_stop_bss(void)
 
 s32 is_softap_enabled(void)
 {
-    FILE *fp;
-    char buf[1024];
+    s32 mode = 0;
+    int ret;
 
-    fp = popen("ps", "r");
-    if (fp == NULL) {
-       ALOGE("Failed to open file");
+    ret = qsap_get_mode(&mode);
+    if (eSUCCESS != ret) {
+       ALOGD("Failed to get the mode of operation\n");
        return eERR_UNKNOWN;
     }
 
-    while (fgets(buf, sizeof(buf)-1, fp) != NULL) {
-       if(NULL !=(strstr(buf,"hostapd")))
-       {
-           pclose(fp);
-           ALOGD("HOSTAPD enabled\n");
-           return ENABLE;
-       }
+    if (mode == IW_MODE_MASTER) {
+       ALOGD("HOSTAPD Enabled\n");
+       return ENABLE;
     }
 
-    ALOGD("HOSTAPD disabled\n");
-    pclose(fp);
+    ALOGD("HOSTAPD Disabled\n");
+
     return DISABLE;
 }
 
