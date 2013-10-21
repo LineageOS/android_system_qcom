@@ -2995,11 +2995,11 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 
 /** Command input
     argv[3] = SSID,
-    argv[4] = SEC,
-    argv[5] = 12345,
-    argv[6] = CHANNEL
-    argv[7] = PREAMBLE,
-    argv[8] = MAX_SCB,
+    argv[4] = BROADCAST/HIDDEN,
+    argv[5] = CHANNEL
+    argv[6] = SECURITY,
+    argv[7] = KEY,
+    argv[8] = COMMIT,
 */
 int qsapsetSoftap(int argc, char *argv[])
 {
@@ -3029,21 +3029,42 @@ int qsapsetSoftap(int argc, char *argv[])
         return eERR_UNKNOWN;
     }
 
+    rlen = RECV_BUF_LEN;
+    if (argc > 4) {
+        snprintf(cmdbuf, CMD_BUF_LEN, "set ignore_broadcast_ssid=%d", atoi(argv[4]));
+        (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
+        if(strncmp("success", respbuf, rlen) != 0) {
+            ALOGE("Failed to set ignore_broadcast_ssid \n");
+            return -1;
+        }
+    }
+    /** channel */
+    rlen = RECV_BUF_LEN;
+    if(argc > 5) {
+        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[5]));
+        (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
+
+        if(strncmp("success", respbuf, rlen) != 0) {
+            ALOGE("Failed to set channel \n");
+            return -1;
+        }
+    }
+
     /** Security */
     rlen = RECV_BUF_LEN;
-    if(argc > 4) {
+    if(argc > 6) {
 
         /**TODO : need to identify the SEC strings for "wep", "wpa", "wpa2" */
-        if(!strcmp(argv[4], "open"))
+        if(!strcmp(argv[6], "open"))
             sec = SEC_MODE_NONE;
 
-        else if(!strcmp(argv[4], "wep"))
+        else if(!strcmp(argv[6], "wep"))
             sec = SEC_MODE_WEP;
 
-        else if(!strcmp(argv[4], "wpa-psk"))
+        else if(!strcmp(argv[6], "wpa-psk"))
             sec = SEC_MODE_WPA_PSK;
 
-        else if(!strcmp(argv[4], "wpa2-psk"))
+        else if(!strcmp(argv[6], "wpa2-psk"))
             sec = SEC_MODE_WPA2_PSK;
 
         snprintf(cmdbuf, CMD_BUF_LEN, "set security_mode=%d",sec);
@@ -3062,10 +3083,10 @@ int qsapsetSoftap(int argc, char *argv[])
     /** Key -- passphrase */
     rlen = RECV_BUF_LEN;
     if ( (sec == SEC_MODE_WPA_PSK) || (sec == SEC_MODE_WPA2_PSK) ) {
-        if(argc > 5) {
+        if(argc > 7) {
             /* If the input passphrase is more than 63 characters, consider first 63 characters only*/
-            if ( strlen(argv[5]) > 63 ) argv[5][63] = '\0';
-            snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[5]);
+            if ( strlen(argv[7]) > 63 ) argv[7][63] = '\0';
+            snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[7]);
         }
         else {
             snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s", DEFAULT_PASSPHRASE);
@@ -3076,19 +3097,6 @@ int qsapsetSoftap(int argc, char *argv[])
     if(strncmp("success", respbuf, rlen) != 0) {
         ALOGE("Failed to set passphrase \n");
         return -1;
-    }
-
-    /** channel */
-    rlen = RECV_BUF_LEN;
-    if(argc > 6) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[6]));
-        (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
-
-        if(strncmp("success", respbuf, rlen) != 0) {
-            ALOGE("Failed to set channel \n");
-            return -1;
-	}
-
     }
 
     rlen = RECV_BUF_LEN;
