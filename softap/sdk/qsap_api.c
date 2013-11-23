@@ -78,9 +78,9 @@ s8 *Cmd_req[eCMD_REQ_LAST] = {
     "set"
 };
 
-/* 
- * WARNING: On updating the cmd_list, the enum esap_cmd in file 
- * qsap_api.h must be updates to reflect the changes 
+/*
+ * WARNING: On updating the cmd_list, the enum esap_cmd in file
+ * qsap_api.h must be updates to reflect the changes
  */
 static struct Command cmd_list[eCMD_LAST] = {
     { "ssid",                  "QualcommSoftAP" },
@@ -119,7 +119,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "sdk_version",           SDK_VERSION      },
     { "wmm_enabled",           "0"              },
 
-    /** Warning: Do not change the order of the WPS commands */    
+    /** Warning: Do not change the order of the WPS commands */
     { "wps_state",             "0"              },
     { "config_methods",        NULL             },
     { "uuid",                  NULL             },
@@ -182,9 +182,22 @@ char *hw_mode[HW_MODE_UNKNOWN] = {
 };
 
 /** configuration file path */
-char *pconffile = CONFIG_FILE; 
+char *pconffile = CONFIG_FILE;
 char *fIni =  WIFI_DRIVER_CONF_FILE;
 s8 ini_file[PROPERTY_VALUE_MAX] = {0};
+
+static int qsap_scnprintf(char *str, size_t size, const char *format, ...)
+{
+    va_list arg_ptr;
+    int ret = 0;
+
+    if (size < 1)
+        return 0;
+    va_start(arg_ptr, format);
+    ret = vsnprintf(str, size, format, arg_ptr);
+    va_end(arg_ptr);
+    return (ret < (int)size) ? ret : (int)(size - 1);
+}
 
 /**
  * @brief
@@ -196,7 +209,7 @@ s8 ini_file[PROPERTY_VALUE_MAX] = {0};
  *                      The length of the configuration parameter value, stored
  *                      in the 'presp', is provided as the output
  * @param ignore_comment [IN] if set, read the commented value also
- * @return void 
+ * @return void
 */
 static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen, s8 *var, s32 ignore_comment)
 {
@@ -210,7 +223,7 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
 
     if(NULL == fcfg) {
         ALOGE("%s : unable to open file \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return eERR_FILE_OPEN;
     }
 
@@ -223,10 +236,10 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
         if(buf[0] == '#') {
             if (ignore_comment) {
                 pline++;
-			}
+            }
             else continue;
         }
-    
+
         /** Identify the configuration parameter in the configuration file */
         if(!strncmp(pline, pcmd->name, len) && (pline[len] == '=')) {
             int tmp_indx;
@@ -241,10 +254,10 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
                 val = strchr(pline, '=');
                 if(NULL == val)
                     break;
-                *plen = snprintf(presp, *plen, "%s %s%s", SUCCESS, var, val);
+                *plen = qsap_scnprintf(presp, *plen, "%s %s%s", SUCCESS, var, val);
             }
             else {
-                *plen = snprintf(presp, *plen, "%s %s", SUCCESS, pline);
+                *plen = qsap_scnprintf(presp, *plen, "%s %s", SUCCESS, pline);
             }
             fclose(fcfg);
             return eSUCCESS;
@@ -253,18 +266,18 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
 
 #if 0
     /** Configuration parameter is absent in the file */
-    *plen = snprintf(presp, *plen, "%s", ERR_FEATURE_NOT_ENABLED);
+    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_FEATURE_NOT_ENABLED);
 #else
     /** Value not found in the configuration file */
-    /** Send the default value, if we are reading from ini file */  
+    /** Send the default value, if we are reading from ini file */
     if ( pcmd->default_value ) {
-        *plen = snprintf(presp, *plen, "%s %s=%s", SUCCESS, var?var:pcmd->name, pcmd->default_value);
+        *plen = qsap_scnprintf(presp, *plen, "%s %s=%s", SUCCESS, var?var:pcmd->name, pcmd->default_value);
         fclose(fcfg);
         return eSUCCESS;
     }
     else {
         /** Configuration parameter is absent in the file */
-        *plen = snprintf(presp, *plen, "%s", ERR_FEATURE_NOT_ENABLED);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_FEATURE_NOT_ENABLED);
     }
 #endif
 
@@ -283,7 +296,7 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
  * @param plen [IN-OUT] The length of the buffer is provided as input.
  *                      The length of the configuration parameter value, stored
  *                      in the 'presp', is provided as the output
- * @return void 
+ * @return void
 */
 static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp, u32 *plen, s32 inifile)
 {
@@ -297,19 +310,17 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
     fcfg = fopen(pfile, "r");
     if(NULL == fcfg) {
         ALOGE("%s : unable to open file \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return eERR_FILE_OPEN;
     }
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pfile);
 
     /** Open a temporary file */
     ftmp = fopen(buf, "w+");
     if(NULL == ftmp) {
         ALOGE("%s : unable to open tmp file \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         fclose(fcfg);
         return eERR_FILE_OPEN;
     }
@@ -322,16 +333,16 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
         /** commented line */
         if(buf[0] == '#')
             pline++;
-    
+
         /** Identify the configuration parameter to be updated */
         if((!strncmp(pline, pcmd->name, len)) && (result == FALSE)) {
             if(pline[len] == '=') {
-                snprintf(buf, MAX_CONF_LINE_LEN, "%s=%s\n", pcmd->name, pVal);
+                qsap_scnprintf(buf, sizeof(buf), "%s=%s\n", pcmd->name, pVal);
                 result = TRUE;
                 ALOGD("Updated:%s\n", buf);
             }
         }
-        
+
         if(inifile && (!strncmp(pline, "END", 3)))
             break;
 
@@ -341,7 +352,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
     if (result == FALSE) {
         /* Configuration line not found */
         /* Add the new line at the end of file */
-        snprintf(buf, MAX_CONF_LINE_LEN, "%s=%s\n", pcmd->name, pVal);
+        qsap_scnprintf(buf, sizeof(buf), "%s=%s\n", pcmd->name, pVal);
         fprintf(ftmp, "%s", buf);
         ALOGD("Adding a new line in %s file: [%s] \n", inifile ? "inifile" : "hostapd.conf", buf);
     }
@@ -356,14 +367,12 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
     fclose(fcfg);
     fclose(ftmp);
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pfile);
 
     /** Restore the updated configuration file */
     result = rename(buf, pfile);
 
-    *plen = snprintf(presp, *plen, "%s", (result == eERR_UNKNOWN) ? ERR_FEATURE_NOT_ENABLED : SUCCESS);
+    *plen = qsap_scnprintf(presp, *plen, "%s", (result == eERR_UNKNOWN) ? ERR_FEATURE_NOT_ENABLED : SUCCESS);
 
     /** Remove the temporary file. Dont care the return value */
     unlink(buf);
@@ -396,7 +405,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
  * @param plen [IN-OUT] The length of the buffer is provided as input.
  *                      The length of the security mode value, stored
  *                      in the 'presp', is provided as the output
- * @return void 
+ * @return void
 */
 static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
 {
@@ -408,7 +417,7 @@ static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
 
     if ( !strcmp(presp, ERR_FEATURE_NOT_ENABLED) ) {
         *plen = temp;
-        
+
         /* WEP, is not enabled */
 
         /** Read WPA security status */
@@ -422,8 +431,8 @@ static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
             s8 * ptmp = presp;
             while((*plen)-- && (*ptmp++ != '=') );
             mode =     *plen ? (
-                    *ptmp == '1' ? SEC_MODE_WPA_PSK : 
-                    *ptmp == '2' ? SEC_MODE_WPA2_PSK : 
+                    *ptmp == '1' ? SEC_MODE_WPA_PSK :
+                    *ptmp == '2' ? SEC_MODE_WPA2_PSK :
                     *ptmp == '3' ? SEC_MODE_WPA_WPA2_PSK : SEC_MODE_INVALID ): SEC_MODE_INVALID;
         }
     }
@@ -436,16 +445,16 @@ static sec_mode_t qsap_read_security_mode(s8 *pfile, s8 *presp, u32 *plen)
             mode = SEC_MODE_WEP;
         }
         else {
-            *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+            *plen = qsap_scnprintf(presp, temp, "%s", ERR_UNKNOWN);
             return SEC_MODE_INVALID;
         }
     }
 
     if(mode != SEC_MODE_INVALID) {
-        *plen = snprintf(presp, temp,"%s %s=%d", SUCCESS, cmd_list[eCMD_SEC_MODE].name, mode);
+        *plen = qsap_scnprintf(presp, temp,"%s %s=%d", SUCCESS, cmd_list[eCMD_SEC_MODE].name, mode);
     }
     else {
-        *plen = snprintf(presp, temp,"%s", ERR_NOT_SUPPORTED);
+        *plen = qsap_scnprintf(presp, temp,"%s", ERR_NOT_SUPPORTED);
     }
 
     return mode;
@@ -472,10 +481,8 @@ static s32 qsap_change_cfg(s8 *pfile, struct Command * pcmd, u32 status)
         ALOGE("%s : unable to open file \n", __func__);
         return eERR_UNKNOWN;
     }
-    
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
-    }
+
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pfile);
 
     /** Open a temporary file */
     ftmp = fopen(buf, "w");
@@ -512,9 +519,7 @@ static s32 qsap_change_cfg(s8 *pfile, struct Command * pcmd, u32 status)
     fclose(fcfg);
     fclose(ftmp);
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pfile);
 
     /** Restore the new configuration file */
     if(eERR_UNKNOWN == rename(buf, pfile)) {
@@ -573,7 +578,7 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
 
     /** Is valid security mode ? */
     if(sec_mode >= SEC_MODE_INVALID) {
-        *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
         return;
     }
 
@@ -594,7 +599,7 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
 
         wep = DISABLE;
         wpa = ENABLE;
-        
+
         if(sec_mode == SEC_MODE_WPA_PSK)
             wpa_val = WPA_IN_CONF_FILE;
 
@@ -608,7 +613,7 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
             rsn_status = ENABLE;
         }
 
-        snprintf(sec, MAX_INT_STR, "%u", wpa_val);
+        qsap_scnprintf(sec, sizeof(sec), "%u", wpa_val);
         qsap_write_cfg(pfile, &qsap_str[STR_WPA], sec, presp, plen, HOSTAPD_CONF_QCOM_FILE);
         *plen = tmp;
     }
@@ -636,7 +641,7 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
         ALOGE("%s: CMD_WEP_KEY2 \n", __func__);
         goto end;
     }
-    
+
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &cmd_list[eCMD_WEP_KEY3], wep)) {
         ALOGE("%s: CMD_WEP_KEY3 \n", __func__);
         goto end;
@@ -662,7 +667,7 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
         ALOGE("%s: WPA2 Pairwise\n", __func__);
         goto end;
     }
-        
+
     if(eERR_UNKNOWN == qsap_change_cfg(pfile, &qsap_str[STR_WPA], wpa)) {
         ALOGE("%s: WPA\n", __func__);
         goto end;
@@ -671,8 +676,8 @@ static void qsap_set_security_mode(s8 *pfile, u32 sec_mode, s8 *presp, u32 *plen
     ret = eSUCCESS;
 
 end:
-    *plen = snprintf(presp, *plen, "%s", (ret == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
-    
+    *plen = qsap_scnprintf(presp, *plen, "%s", (ret == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
+
     return;
 }
 
@@ -685,7 +690,7 @@ end:
  *                   or the error message.
  * @param plen [IN-OUT] size of the buffer 'pfile', is provided as input and
  *                      the length of the file name is returned as output
- * @return 
+ * @return
  *           On success, a pointer to the file name in the buffer 'pfile'.
  *           On failure, NULL is returned
 */
@@ -740,7 +745,7 @@ static int isValid_MAC_address(char *pMac)
  * @param plen [IN-OUT] The length of the buffer 'presp' is provided as input.
  *                      The length of the response, stored in buffer 'presp' is
  *                      provided as output.
- * @return void 
+ * @return void
 */
 static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
 {
@@ -759,7 +764,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
 
     if(NULL == fp) {
         ALOGE("%s : unable to open the file \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
 
@@ -771,7 +776,7 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     /** Evaluate the allowed limit */
     if(num_macs >= MAX_ALLOWED_MAC) {
         ALOGE("%s : File is full\n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
         fclose(fp);
         return;
     }
@@ -813,8 +818,8 @@ static void qsap_add_mac_to_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     }
 
     fclose(fp);
-    
-    *plen = snprintf(presp, *plen, "%s", SUCCESS);
+
+    *plen = qsap_scnprintf(presp, *plen, "%s", SUCCESS);
 
     return;
 }
@@ -836,26 +841,24 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     FILE *ftmp;
     s8 buf[MAX_CONF_LINE_LEN];
     int status;
-    
+
     /** Open the allow or deny MAC list file */
     fp = fopen(pfile, "r+");
 
     if(NULL == fp) {
         ALOGE("%s : unable to open the file \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN-1] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pfile);
 
     /** Open a temporary file */
     ftmp = fopen(buf, "w");
 
     if(ftmp == NULL) {
         ALOGE("%s : unable to open the file \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         fclose(fp);
         return;
     }
@@ -865,11 +868,11 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
         s8 *plist;
         s32 slen;
         int write_back = 1;
-        
+
         plist = pVal;
         slen = strlen(pVal);
 
-        /** Compare each MAC address in the file with all the 
+        /** Compare each MAC address in the file with all the
           * input MAC addresses */
         write_back = 1;
         while(slen > 0) {
@@ -890,7 +893,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
         }
 
         /** Update the file */
-        if(write_back) {    
+        if(write_back) {
             fprintf(ftmp, "%s", buf);
         }
     }
@@ -898,17 +901,15 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
     fclose(fp);
     fclose(ftmp);
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pfile)) {
-        buf[MAX_CONF_LINE_LEN-1] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pfile);
 
     /** Restore the configuration file */
     status = rename(buf, pfile);
-    
-    snprintf(presp, *plen, "%s", (status == eERR_UNKNOWN) ? ERR_FEATURE_NOT_ENABLED : SUCCESS);
+
+    qsap_scnprintf(presp, *plen, "%s", (status == eERR_UNKNOWN) ? ERR_FEATURE_NOT_ENABLED : SUCCESS);
 
     unlink(buf);
-        
+
     return;
 }
 
@@ -945,7 +946,7 @@ static void qsap_update_mac_list(s8 *pfile, esap_cmd_t cNum, s8 *pVal, s8 *presp
                 break;
 
         default:
-                *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+                *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
                 return;
     }
 
@@ -953,12 +954,12 @@ static void qsap_update_mac_list(s8 *pfile, esap_cmd_t cNum, s8 *pVal, s8 *presp
 }
 
 /**
- * @brief  
+ * @brief
  * @param fconfig [INPUT] configuration file name
  * @param cNum [INPUT] command number. The valid command numbers supported by
  *                     this function are :
  *                     eCMD_ALLOW_LIST - Get the MAC address list from the allow list
- *                     eCMD_DENY_LIST - Get the MAC address list from the deny list 
+ *                     eCMD_DENY_LIST - Get the MAC address list from the deny list
  * @param presp [OUTPUT] presp The command output format :
  *                    On success,
  *                            success <cmd>=<value>
@@ -986,7 +987,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
         sNum = STR_DENY_MAC_FILE;
     }
     else {
-        *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
         return;
     }
 
@@ -994,7 +995,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
     len_remain = MAX_CONF_LINE_LEN;
     if(NULL == (pfile = qsap_get_allow_deny_file_name(fconfile, &qsap_str[sNum], buf, &len_remain))) {
         ALOGE("%s:Unknown error\n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
 
@@ -1002,16 +1003,11 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
     fp = fopen(pfile, "r");
     if(NULL == fp) {
         ALOGE("%s: file open error\n",__func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
         return;
     }
 
-    /* Keep the NULL at the end of the buffer */
-    presp[*plen-1] = '\0';
-    *plen -= snprintf(presp, *plen, "%s %s=", SUCCESS, cmd_list[cNum].name);
-
-    /* Reserving the space for last null character in case of over flow */
-    (u32)(*plen)--;
+    *plen -= qsap_scnprintf(presp, *plen, "%s %s=", SUCCESS, cmd_list[cNum].name);
 
     pOut = presp + strlen(presp);
 
@@ -1033,7 +1029,7 @@ static void qsap_get_mac_list(s8 *fconfile, esap_cmd_t cNum, s8 *presp, u32 *ple
             break;
         }
 
-        len = snprintf(pOut, *plen, "%s ", buf);
+        len = qsap_scnprintf(pOut, *plen, "%s ", buf);
         cnt++;
 
         if (cnt >= MAX_ALLOWED_MAC) {
@@ -1070,15 +1066,17 @@ static int qsap_read_mac_address(s8 *presp, u32 *plen)
         goto end;
 
     strncpy(mac, ptr+1, MAC_ADDR_LEN);
-    *plen = snprintf(presp, len, "%s %s=", SUCCESS, cmd_list[eCMD_MAC_ADDR].name);
+    *plen = qsap_scnprintf(presp, len, "%s %s=", SUCCESS, cmd_list[eCMD_MAC_ADDR].name);
     ptr = presp + strlen(presp);
-        
+    len -= strlen(presp); /* decrease the total available buf length */
+
     for(i=0; i<MAC_ADDR_LEN-5; i+=2) {
         u32 tlen;
 
-        tlen = snprintf(ptr, len, "%c%c:", mac[i], mac[i+1]);
+        tlen = qsap_scnprintf(ptr, len, "%c%c:", mac[i], mac[i+1]);
         *plen += tlen;
         ptr += tlen;
+        len -= tlen; /* decrease the available len of ptr */
     }
     presp[*plen-1] = '\0';
     (*plen)--;
@@ -1132,9 +1130,9 @@ static void qsap_read_wps_state(s8 *presp, u32 *plen)
         status = (atoi(pstate) == WPS_STATE_ENABLE) ? ENABLE : DISABLE;
     }
 
-    *plen = snprintf(presp, *plen, "success %s=%ld", cmd_list[eCMD_WPS_STATE].name, status);
+    *plen = qsap_scnprintf(presp, *plen, "success %s=%ld", cmd_list[eCMD_WPS_STATE].name, status);
 
-    return;    
+    return;
 }
 
 /**
@@ -1297,13 +1295,13 @@ int qsap_get_mode(s32 *pmode)
     }
 
     *pmode = *(s32 *)(&wrq.u.mode);
-    ALOGE("%s: ioctl Get Mode = %d \n",__func__, *pmode);
+    ALOGE("%s: ioctl Get Mode = %d \n",__func__, (int)*pmode);
     close(sock);
     return eSUCCESS;
 
 error:
     *pmode = -1;
-    ALOGE("%s: (Failure) ioctl Get Mode = %d \n",__func__, *pmode);
+    ALOGE("%s: (Failure) ioctl Get Mode = %d \n",__func__, (int)*pmode);
     return eERR_UNKNOWN;
 }
 
@@ -1403,10 +1401,10 @@ int qsap_read_channel(s8 *pfile, struct Command *pcmd, s8 *presp, u32 *plen, s8 
     u32  len = *plen;
 
    if(eSUCCESS == qsap_get_operating_channel(&chan)) {
-            *plen = snprintf(presp, len, "%s %s=%lu", SUCCESS, pcmd->name, chan);
+            *plen = qsap_scnprintf(presp, len, "%s %s=%lu", SUCCESS, pcmd->name, chan);
              ALOGD("presp :%s\n", presp);
    } else {
-          *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
+          *plen = qsap_scnprintf(presp, len, "%s", ERR_UNKNOWN);
    }
 
     return eSUCCESS;
@@ -1422,10 +1420,10 @@ int qsap_read_auto_channel(struct Command *pcmd, s8 *presp, u32 *plen)
     ALOGE("%s :\n", __func__);
 
     if (eSUCCESS == qsap_get_sap_auto_channel_selection(&pautochan)) {
-          *plen = snprintf(presp, len, "%s autochannel=%lu", SUCCESS, pautochan);
+          *plen = qsap_scnprintf(presp, len, "%s autochannel=%lu", SUCCESS, pautochan);
           ALOGE("presp :%s\n", presp);
     } else {
-          *plen = snprintf(presp, len, "%s", ERR_UNKNOWN);
+          *plen = qsap_scnprintf(presp, len, "%s", ERR_UNKNOWN);
     }
 
     return eSUCCESS;
@@ -1437,7 +1435,7 @@ static int qsap_mac_to_macstr(s8 *pmac, u32 slen, s8 *pmstr, u32 *plen)
     int totlen = 0;
 
     while((slen > 0) && (*plen > 0)) {
-        len = snprintf(pmstr, *plen, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X ", (int)pmac[0], (int)pmac[1], (int)pmac[2],
+        len = qsap_scnprintf(pmstr, *plen, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X ", (int)pmac[0], (int)pmac[1], (int)pmac[2],
                             (int)pmac[3], (int)pmac[4], (int)pmac[5]);
         pmac += 6;
         slen -= 6;
@@ -1508,20 +1506,20 @@ void qsap_get_associated_sta_mac(s8 *presp, u32 *plen)
 
     recvLen = *(unsigned long int *)(wrq.u.data.pointer);
 
-    len = snprintf(presp, *plen, "%s %s=", SUCCESS, cmd_list[eCMD_ASSOC_STA_MACS].name);
+    len = qsap_scnprintf(presp, *plen, "%s %s=", SUCCESS, cmd_list[eCMD_ASSOC_STA_MACS].name);
     pout = presp + len;
     tlen = *plen - len;
 
     qsap_mac_to_macstr(pbuf+sizeof(unsigned long int), recvLen, pout, &tlen);
 
     *plen = len + tlen;
-    
+
     free(pbuf);
     close(sock);
 
     return;
 error:
-    *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
 
     return;
 }
@@ -1564,11 +1562,10 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
     u32 len = MAX_CONF_LINE_LEN;
     s8 *pif;
     s8 *pbuf, *pout;
-    u32 recvLen;
     u32 tlen;
 
     if(ENABLE != is_softap_enabled()) {
-        *plen = snprintf(presp, *plen, "%s", ERR_SOFTAP_NOT_STARTED);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_SOFTAP_NOT_STARTED);
         return;
     }
 
@@ -1604,18 +1601,14 @@ void qsap_read_ap_stats(s8 *presp, u32 *plen)
         goto error;
     }
 
-    if(*plen == (recvLen = snprintf(presp, *plen, "%s %s=%s", SUCCESS, cmd_list[eCMD_AP_STATISTICS].name, pbuf))){
-        presp[recvLen-1] = '\0';
-    }
-
-    *plen = recvLen;
+    *plen = qsap_scnprintf(presp, *plen, "%s %s=%s", SUCCESS, cmd_list[eCMD_AP_STATISTICS].name, pbuf);
 
     free(pbuf);
     close(sock);
     return;
 
 error:
-    *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
 
     return;
 }
@@ -1636,17 +1629,17 @@ void qsap_read_autoshutoff(s8 *presp, u32 *plen)
         time = time / 60; /** Convert seconds to minutes */
     }
 
-    *plen = snprintf(presp, *plen, "success %s=%ld", cmd_list[eCMD_AP_AUTOSHUTOFF].name, time);
+    *plen = qsap_scnprintf(presp, *plen, "success %s=%ld", cmd_list[eCMD_AP_AUTOSHUTOFF].name, time);
 
     return;
 }
 
 
 /**
- * @brief 
+ * @brief
  *       Get the configuration information from the softAP configuration
- *       files 
- * @param cNum [INPUT] 
+ *       files
+ * @param cNum [INPUT]
  * @param presp [OUTPUT] presp The command output format :
  *                    On success,
  *                            success <cmd>=<value>
@@ -1666,7 +1659,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
     switch(cNum) {
         case eCMD_ENABLE_SOFTAP:
             status = is_softap_enabled();
-            *plen = snprintf(presp, *plen, "%s %s=%d", SUCCESS, cmd_list[cNum].name, status);
+            *plen = qsap_scnprintf(presp, *plen, "%s %s=%d", SUCCESS, cmd_list[cNum].name, status);
             break;
 
         case eCMD_WPA_PAIRWISE:
@@ -1717,7 +1710,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
         case eCMD_FRAG_THRESHOLD:
                 qsap_read_cfg(fIni, &qsap_str[STR_FRAG_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_FRAG_THRESHOLD].name, GET_ENABLED_ONLY);
                 break;
-                
+
         case eCMD_REGULATORY_DOMAIN:
                 qsap_read_cfg(fIni, &qsap_str[STR_802DOT11D_IN_INI], presp, plen, cmd_list[eCMD_REGULATORY_DOMAIN].name, GET_ENABLED_ONLY);
                 break;
@@ -1730,14 +1723,14 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
         case eCMD_DENY_LIST:
                 qsap_get_mac_list(pconffile, cNum, presp, plen);
                 break;
- 
+
         case eCMD_SEC_MODE:
                 qsap_read_security_mode(pconffile, presp, plen);
                 break;
 
         case eCMD_MAC_ADDR:
                 if(eSUCCESS != qsap_read_mac_address(presp, plen)) {
-                    *plen = snprintf(presp, *plen, "%s", ERR_NOT_SUPPORTED);
+                    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_NOT_SUPPORTED);
                 }
                 break;
 
@@ -1770,11 +1763,11 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_AP_STATISTICS:
-                qsap_read_ap_stats(presp, plen); 
+                qsap_read_ap_stats(presp, plen);
                 break;
 
         case eCMD_AP_AUTOSHUTOFF:
-		    qsap_read_autoshutoff(presp, plen);
+            qsap_read_autoshutoff(presp, plen);
             break;
 
         case eCMD_AP_ENERGY_DETECT_TH:
@@ -1785,7 +1778,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                break;
         default:
             /** Error case */
-            *plen = snprintf(presp, *plen, "%s", ERR_INVALID_ARG);
+            *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
     }
 
     len = *plen-1;
@@ -1804,10 +1797,10 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
 }
 
 /**
- * @brief 
+ * @brief
  *        Identify the command number corresponding to the input user command.
  * @param cName [INPUT] command name
- * @return 
+ * @return
  *             On success,
  *                     command number in the range 0 to (eCMD_INVALID-1)
  *          On failure,
@@ -1844,7 +1837,7 @@ static esap_cmd_t qsap_get_cmd_num(s8 *cName)
  * @param plen [IN-OUT]
  *                 [IN] : Maximum length of the reponse buffer
  *                [OUT]: Reponse length
- * @return 
+ * @return
  *         void
 */
 static void qsap_handle_get_request(s8 *pcmd, s8 *presp, u32 *plen)
@@ -1852,13 +1845,13 @@ static void qsap_handle_get_request(s8 *pcmd, s8 *presp, u32 *plen)
     esap_cmd_t cNum;
 
     pcmd += strlen("get");
-    
+
     SKIP_BLANK_SPACE(pcmd);
 
     cNum = qsap_get_cmd_num(pcmd);
 
     if(cNum == eCMD_INVALID) {
-        *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
         return;
     }
 
@@ -1874,8 +1867,8 @@ static s16 is_valid_wep_key(s8 *pwep, s8 *pkey, s16 len)
     int ascii = FALSE;
 
     weplen = strlen(pwep);
-   
-    /** Remove the double quotes if any */ 
+
+    /** Remove the double quotes if any */
     if((pwep[0] == '"') && (pwep[weplen-1] == '"')) {
         pwep[weplen-1] = '\0';
         pwep++;
@@ -1911,7 +1904,7 @@ static s16 is_valid_wep_key(s8 *pwep, s8 *pkey, s16 len)
             ret = FALSE;
     }
 
-    snprintf(pkey, len, (ascii == TRUE) ? "\"%s\"" : "%s", pwep);
+    qsap_scnprintf(pkey, len, (ascii == TRUE) ? "\"%s\"" : "%s", pwep);
 
     return ret;
 }
@@ -1929,9 +1922,7 @@ s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
         return eERR_FILE_OPEN;
     }
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pcfgfile)) {
-        buf[MAX_CONF_LINE_LEN-1] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pcfgfile);
 
     ftmp = fopen(buf, "w+");
     if(NULL == ftmp) {
@@ -1947,9 +1938,7 @@ s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
     fclose(fcfg);
     fclose(ftmp);
 
-    if(MAX_CONF_LINE_LEN == snprintf(buf, MAX_CONF_LINE_LEN, "%s~", pcfgfile)) {
-        buf[MAX_CONF_LINE_LEN-1] = '\0';
-    }
+    qsap_scnprintf(buf, sizeof(buf), "%s~", pcfgfile);
 
     if(eERR_UNKNOWN == rename(buf, pcfgfile))
         status = eERR_CONF_FILE;
@@ -1983,8 +1972,8 @@ void qsap_del_ctrl_iface(void)
         goto error;
     }
 
-    if((int)sizeof(path) <= snprintf(path, sizeof(path)-1, "%s/%s", pcif, pif)) {
-        ALOGE("Iface path : error, %s \n", path);
+    if ((int)sizeof(path) <= snprintf(path, sizeof(path), "%s/%s", pcif, pif)) {
+        ALOGE("Iface path : truncating error, %s \n", path);
         goto error;
     }
 
@@ -2007,16 +1996,17 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
     s8 interface[64];
     s8 *ptr;
     u32 retry_cnt = 3;
+    size_t ptr_size;
 
     len = CTRL_IFACE_PATH_LEN;
-
-#define RESP_BUF_SIZE (80)
-    ptr = malloc(RESP_BUF_SIZE);
+    ptr_size = (sizeof(ser.sun_path) < CTRL_IFACE_PATH_LEN)?
+        CTRL_IFACE_PATH_LEN : sizeof(ser.sun_path);
+    ptr = malloc(ptr_size);
     if(NULL == ptr) {
         ALOGE("%s :No memory \n", __func__);
         return ret;
     }
-    
+
     if(NULL == (pcif = qsap_get_config_value(pconffile, &qsap_str[STR_CTRL_INTERFACE], dst_path, &len))) {
         ALOGE("%s :ctrl_iface path error \n", __func__);
         goto error;
@@ -2029,8 +2019,9 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
         goto error;
     }
 
-    if(CTRL_IFACE_PATH_LEN <= snprintf(ptr, CTRL_IFACE_PATH_LEN-1, "%s/%s", pcif, pif)) {
-        ALOGE("Iface path : error, %s \n", ptr);
+    if ((int)sizeof(ser.sun_path) <= snprintf(ptr, sizeof(ser.sun_path), "%s/%s", pcif, pif)) {
+        /* the sun_path is truncated. */
+        ALOGE("Iface path : truncating error, %s \n", ptr);
         goto error;
     }
 
@@ -2043,7 +2034,7 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
     }
 
     cli.sun_family = AF_UNIX;
-    snprintf(cli.sun_path, sizeof(cli.sun_path), SDK_CTRL_IF);
+    qsap_scnprintf(cli.sun_path, sizeof(cli.sun_path), SDK_CTRL_IF);
 
     ret = bind(sock, (struct sockaddr *)&cli, sizeof(cli));
 
@@ -2051,9 +2042,9 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
         ALOGE("Bind Failure\n");
         goto close_ret;
     }
-    
+
     ser.sun_family = AF_UNIX;
-    snprintf(ser.sun_path, sizeof(ser.sun_path), "%s", ptr);
+    qsap_scnprintf(ser.sun_path, sizeof(ser.sun_path), "%s", ptr);
     ALOGD("Connect to: %s,(%d)\n", ser.sun_path, sock);
 
     ret = connect(sock, (struct sockaddr *)&ser, sizeof(ser));
@@ -2061,25 +2052,25 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
         ALOGE("Connect Failure...\n");
         goto close_ret;
     }
-    
+
     ret = send(sock, pcmd, strlen(pcmd), 0);
     if(ret < 0) {
         ALOGE("Unable to send cmd to hostapd \n");
         goto close_ret;
     }
-
-    len = RESP_BUF_SIZE;
+    /* reset the ptr buffer size for recv */
+    len = ptr_size;
 
 #define HOSTAPD_RECV_TIMEOUT    (2)
     while(1) {
         timeout.tv_sec = HOSTAPD_RECV_TIMEOUT;
         timeout.tv_usec = 0;
-        
+
         FD_ZERO(&read);
         FD_SET(sock, &read);
 
         ret = select(sock+1, &read, NULL, NULL, &timeout);
-        
+
         if(FD_ISSET(sock, &read)) {
 
             ret = recv(sock, ptr, len, 0);
@@ -2089,8 +2080,12 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
                 goto close_ret;
             }
 
-            if((ret > 0) && (ptr[0] == '<')) {
+            if ((u32)ret >= len)
+                ptr[len-1] = 0;
+            else
                 ptr[ret] = 0;
+
+            if((ret > 0) && (ptr[0] == '<')) {
                 ALOGE("Not the expected response...\n: %s", ptr);
                 retry_cnt--;
                 if(retry_cnt)
@@ -2098,7 +2093,6 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
                 break;
             }
 
-            ptr[len] = '\0';
             if(!strncmp(ptr, "FAIL", 4)) {
                 ALOGE("Command failed in hostapd \n");
                 goto close_ret;
@@ -2138,8 +2132,8 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
      */
     status = atoi(pVal);
 
-    snprintf(pwps_state, MAX_INT_STR, "%d", (status == ENABLE) ? WPS_STATE_ENABLE : WPS_STATE_DISABLE);
-    
+    qsap_scnprintf(pwps_state, sizeof(pwps_state), "%d", (status == ENABLE) ? WPS_STATE_ENABLE : WPS_STATE_DISABLE);
+
     qsap_write_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], pwps_state, presp, &tlen, HOSTAPD_CONF_QCOM_FILE);
 
     if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &cmd_list[eCMD_WPS_STATE], status)) {
@@ -2147,11 +2141,11 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
         goto error;
     }
 
-    snprintf(pwps_state, 8, "%d", ENABLE);
+    qsap_scnprintf(pwps_state, sizeof(pwps_state), "%d", ENABLE);
 
-    /** update the eap_server=1 */    
+    /** update the eap_server=1 */
     qsap_write_cfg(pconffile, &qsap_str[STR_EAP_SERVER], pwps_state, presp, plen, HOSTAPD_CONF_QCOM_FILE);
-    
+
     for(i=eCMD_UUID; i<=eCMD_UPC; i++) {
         if(eERR_UNKNOWN == qsap_change_cfg(pconffile, &cmd_list[i], status)) {
             ALOGE("%s: failed to set %s\n", __func__, cmd_list[i].name);
@@ -2161,7 +2155,7 @@ static void qsap_update_wps_config(s8 *pVal, s8 *presp, u32 *plen)
 
     return;
 error:
-    *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
 
     return;
 }
@@ -2190,7 +2184,7 @@ static void qsap_config_wps_method(s8 *pVal, s8 *presp, u32 *plen)
     /** Identify the WPS method */
     value = atoi(buf);
     if(TRUE != IS_VALID_WPS_CONFIG(value)) {
-        *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
         return;
     }
 
@@ -2198,24 +2192,24 @@ static void qsap_config_wps_method(s8 *pVal, s8 *presp, u32 *plen)
 
     if( (value == WPS_CONFIG_PIN) && (*ptr == '\0') ){
         ALOGE("%s :Invalid command \n", __func__);
-        *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
         return;
     }
 
     if(value == WPS_CONFIG_PBC)
-        snprintf(buf, 64, "WPS_PBC");
+        qsap_scnprintf(buf, sizeof(buf), "WPS_PBC");
     else {
         if(strlen(ptr) < WPS_KEY_LEN) {
             ALOGD("%s :Invalid WPS key length\n", __func__);
-            *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
+            *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
             return;
         }
-        snprintf(buf, 64, "WPS_PIN any %s", ptr);
+        qsap_scnprintf(buf, sizeof(buf), "WPS_PIN any %s", ptr);
     }
 
     value = qsap_send_cmd_to_hostapd(buf);
 
-    *plen = snprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS: ERR_UNKNOWN);
+    *plen = qsap_scnprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS: ERR_UNKNOWN);
 
     return;
 }
@@ -2317,7 +2311,7 @@ void qsap_disassociate_sta(s8 *pVal, s8 *presp, u32 *plen)
     close(sock);
 
 end:
-    *plen = snprintf(presp, *plen, "%s", (ret == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
+    *plen = qsap_scnprintf(presp, *plen, "%s", (ret == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
 
     return;
 }
@@ -2327,7 +2321,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
     u32 ulen;
     s8 *pcfgval;
     s8 schan[MAX_INT_STR+1];
-    s8 *pcfg = pconffile; 
+    s8 *pcfg = pconffile;
 
     ulen = *tlen;
 
@@ -2367,19 +2361,19 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         }
     }
 
-    snprintf(schan, MAX_INT_STR, "%ld", channel);
+    qsap_scnprintf(schan, sizeof(schan), "%ld", channel);
 
     return qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], schan, tbuf, tlen, HOSTAPD_CONF_QCOM_FILE);
 }
 
-static int qsap_set_operating_mode(s32 mode, s8 *pmode, s8 *tbuf, u32 *tlen)
+static int qsap_set_operating_mode(s32 mode, s8 *pmode, int pmode_len, s8 *tbuf, u32 *tlen)
 {
     u32 ulen;
     s8 *pcfgval;
     s32 channel;
     s8 sconf[MAX_INT_STR+1];
     s8 *pcfg = pconffile;
-    s32 rate_idx; 
+    s32 rate_idx;
     s8  ieee11n_enable[] = "1";
     s8  ieee11n_disable[] = "0";
 
@@ -2399,16 +2393,16 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, s8 *tbuf, u32 *tlen)
             /* fall through */
         case HW_MODE_N:
         case HW_MODE_A:
-	    ulen = *tlen;
+            ulen = *tlen;
             qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_enable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
             break;
         case HW_MODE_B:
-	    ulen = *tlen;
+            ulen = *tlen;
             qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_disable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
             break;
     }
     if(mode == HW_MODE_G_ONLY || mode == HW_MODE_N_ONLY || mode == HW_MODE_N ) {
-        snprintf(pmode, sizeof(u32), "%s",hw_mode[HW_MODE_G]);
+        qsap_scnprintf(pmode, pmode_len, "%s",hw_mode[HW_MODE_G]);
     }
     return qsap_write_cfg(pcfg, &cmd_list[eCMD_HW_MODE], pmode, tbuf, tlen, HOSTAPD_CONF_QCOM_FILE);
 }
@@ -2433,20 +2427,20 @@ static int qsap_set_data_rate(s32 drate_idx, s8 *presp, u32 *plen)
     }
 
     /** Validate the rate index against the current operating mode */
-    if(((!strcmp(pmode, hw_mode[HW_MODE_B])) && (drate_idx > B_MODE_MAX_DATA_RATE_IDX)) || 
-        ((!strcmp(pmode, hw_mode[HW_MODE_G]) || (!strcmp(pmode, hw_mode[HW_MODE_G_ONLY]))) && 
+    if(((!strcmp(pmode, hw_mode[HW_MODE_B])) && (drate_idx > B_MODE_MAX_DATA_RATE_IDX)) ||
+        ((!strcmp(pmode, hw_mode[HW_MODE_G]) || (!strcmp(pmode, hw_mode[HW_MODE_G_ONLY]))) &&
         (drate_idx > G_ONLY_MODE_MAX_DATA_RATE_IDX))) {
         ALOGE("%s :Invalid rate index \n", __func__);
         goto end;
     }
-   
-    snprintf(sconf, MAX_INT_STR, "%ld", drate_idx);
+
+    qsap_scnprintf(sconf, sizeof(sconf), "%ld", drate_idx);
 
     /** Update the rate index in the configuration */
     return qsap_write_cfg(fIni, &qsap_str[STR_DATA_RATE_IN_INI], sconf, presp, plen, INI_CONF_FILE);
 
 end:
-    *plen = snprintf(presp, *plen, "%s", ERR_UNKNOWN);
+    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_UNKNOWN);
 
     return ret;
 }
@@ -2468,7 +2462,7 @@ end:
  * @param plen [IN-OUT]
  *                 [IN]: Maximum length of the reponse buffer
  *                [OUT]: Reponse length
- * @return 
+ * @return
  *         void
 */
 static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
@@ -2481,32 +2475,31 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     s32 status;
     s32 value;
     s16 ini = HOSTAPD_CONF_QCOM_FILE;
-    s8 *pcfg = pconffile; 
+    s8 *pcfg = pconffile;
 
     pcmd += strlen("set");
-    
+
     SKIP_BLANK_SPACE(pcmd);
 
     cNum = qsap_get_cmd_num(pcmd);
     if(cNum == eCMD_INVALID) {
-        *plen = snprintf(presp, *plen, "%s", ERR_INVALID_ARG);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
         ALOGE("Invalid command number :%d\n", cNum);
         return;
     }
-
     pVal = pcmd + strlen(cmd_list[cNum].name);
     if( (cNum != eCMD_COMMIT) &&
-        (cNum != eCMD_RESET_TO_DEFAULT) && 
+        (cNum != eCMD_RESET_TO_DEFAULT) &&
         ((*pVal != '=') || (strlen(pVal) < 2)) ) {
-        *plen = snprintf(presp, *plen, "%s", ERR_INVALID_ARG);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
         return;
     }
+
     pVal++;
 
     if((cNum != eCMD_COMMIT) && (cNum != eCMD_RESET_TO_DEFAULT)) {
         ALOGE("Cmd: %s Argument :%s \n", cmd_list[cNum].name, pVal);
     }
-
     switch(cNum) {
         case eCMD_ADD_TO_ALLOW:
         case eCMD_REMOVE_FROM_ALLOW:
@@ -2520,7 +2513,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 qsap_update_mac_list(pfile, cNum, pVal, presp, plen);
             }
             else {
-                *plen = snprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE); 
+                *plen = qsap_scnprintf(presp, *plen, "%s", ERR_RES_UNAVAILABLE);
             }
             return;
 
@@ -2529,9 +2522,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(FALSE == IS_VALID_SEC_MODE(value))
                 goto error;
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
-             * being written to the configuration
+             * being written to the configuration.
              */
-            snprintf(pVal, sizeof(u32), "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             qsap_set_security_mode(pconffile, value, presp, plen);
             return;
 
@@ -2543,7 +2536,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
-            snprintf(pVal, sizeof(u32), "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
 
             if(ACL_ALLOW_LIST == value) {
                 value = ENABLE;
@@ -2582,9 +2575,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             else {
                 status = commit();
             }
-            *plen = snprintf(presp, *plen, "%s", (status ==  eSUCCESS)? SUCCESS : ERR_UNKNOWN);
+            *plen = qsap_scnprintf(presp, *plen, "%s", (status ==  eSUCCESS)? SUCCESS : ERR_UNKNOWN);
 #endif
-            *plen = snprintf(presp, *plen, "%s", SUCCESS);
+            *plen = qsap_scnprintf(presp, *plen, "%s", SUCCESS);
             return;
 
         case eCMD_ENABLE_SOFTAP:
@@ -2599,7 +2592,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             else {
                 status = wifi_qsap_load_driver();
             }
-            *plen = snprintf(presp, *plen, "%s", (status==eSUCCESS) ? SUCCESS : "failure Could not enable softap");
+            *plen = qsap_scnprintf(presp, *plen, "%s", (status==eSUCCESS) ? SUCCESS : "failure Could not enable softap");
             return;
         case eCMD_SSID:
             value = strlen(pVal);
@@ -2614,7 +2607,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             break;
         case eCMD_PASSPHRASE:
             value = strlen(pVal);
@@ -2628,7 +2621,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             ulen = MAX_FILE_PATH_LEN;
             value = qsap_set_channel(value, filename, &ulen);
 
-            *plen = snprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
+            *plen = qsap_scnprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
             return;
 
         case eCMD_BCN_INTERVAL:
@@ -2638,7 +2631,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             break;
 
         case eCMD_DTIM_PERIOD:
@@ -2648,7 +2641,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             break;
 
         case eCMD_HW_MODE:
@@ -2664,8 +2657,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
 
             ulen = MAX_FILE_PATH_LEN;
-            value = qsap_set_operating_mode(value, pVal, filename, &ulen);
-            *plen = snprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
+            /* pVal is anull terminated string */
+            value = qsap_set_operating_mode(value, pVal, strlen(pVal)+1, filename, &ulen);
+            *plen = qsap_scnprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
             return;
 
         case eCMD_AUTH_ALGS:
@@ -2676,7 +2670,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             break;
 
         case eCMD_DEFAULT_KEY:
@@ -2686,10 +2680,10 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
              /** Write back the integer value. This is to avoid values like 01, 001, 0001
                * being written to the configuration
                */
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
-            
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
+
             qsap_write_cfg(pcfg, &cmd_list[cNum], pVal, presp, plen, ini);
-        
+
             ulen = MAX_FILE_PATH_LEN;
             if(SEC_MODE_WEP != qsap_read_security_mode(pcfg, filename, &ulen)) {
                 if(eERR_UNKNOWN == qsap_change_cfg(pcfg, &cmd_list[cNum], 0)) {
@@ -2772,7 +2766,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             else {
                 status = !eSUCCESS;
             }
-            *plen = snprintf(presp, *plen, "%s", (status == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
+            *plen = qsap_scnprintf(presp, *plen, "%s", (status == eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
             return;
 
         case eCMD_DISASSOC_STA:
@@ -2785,7 +2779,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                     status = wifi_qsap_reload_softap();
                 }
             }
-            *plen = snprintf(presp, *plen, "%s", (status ==  eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
+            *plen = qsap_scnprintf(presp, *plen, "%s", (status ==  eSUCCESS) ? SUCCESS : ERR_UNKNOWN);
             return;
 
         case eCMD_DATA_RATES:
@@ -2867,9 +2861,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_WMM_STATE(value))
                 goto error;
 
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             cNum = STR_WMM_IN_INI;
-            ini = INI_CONF_FILE; 
+            ini = INI_CONF_FILE;
             break;
         case eCMD_WPS_STATE:
             value = atoi(pVal);
@@ -2878,7 +2872,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             /** Write back the integer value. This is to avoid values like 01, 001, 0001
               * being written to the configuration
               */
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             qsap_update_wps_config(pVal, presp, plen);
             return;
 
@@ -2890,7 +2884,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             if(TRUE != IS_VALID_PROTECTION(value))
                 goto error;
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             cNum = STR_PROT_FLAG_IN_INI;
             ini = INI_CONF_FILE;
             break;
@@ -2899,8 +2893,8 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             if(TRUE != IS_VALID_FRAG_THRESHOLD(value))
                 goto error;
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
-             
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
+
             cNum = STR_FRAG_THRESHOLD_IN_INI;
             ini = INI_CONF_FILE;
             break;
@@ -2911,14 +2905,14 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_802DOT11D_STATE(value))
                 goto error;
 
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             break;
 
         case eCMD_RTS_THRESHOLD:
             value = atoi(pVal);
             if(TRUE != IS_VALID_RTS_THRESHOLD(value))
                 goto error;
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             cNum = STR_RTS_THRESHOLD_IN_INI;
             ini = INI_CONF_FILE;
             break;
@@ -2935,7 +2929,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_TX_POWER(value))
                 goto error;
             qsap_set_ini_filename();
-            snprintf(pVal, sizeof(u32), "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             cNum = STR_TX_POWER_IN_INI;
             ini = INI_CONF_FILE;
             break;
@@ -2953,7 +2947,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 status = qsap_change_cfg(pcfg,
                           &cmd_list[eCMD_INTRA_BSS_FORWARD],ENABLE);
             }
-            *plen = snprintf(presp, *plen, "%s", (status == eSUCCESS) ?
+            *plen = qsap_scnprintf(presp, *plen, "%s", (status == eSUCCESS) ?
                      SUCCESS : ERR_UNKNOWN);
             return;
 
@@ -2967,8 +2961,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             if(TRUE != IS_VALID_APSHUTOFFTIME(value))
                 goto error;
-
-            snprintf(pVal, MAX_INT_STR, "%ld", value*60);
+            /* copy a larger value back to pVal. Please pay special care
+             * in caller to make sure that the buffer has sufficient size. */
+            qsap_scnprintf(pVal, MAX_INT_STR, "%ld", value*60);
             cNum = STR_AP_AUTOSHUTOFF;
             ini = INI_CONF_FILE;
             break;
@@ -2978,14 +2973,14 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_ENERGY_DETECT_TH(value))
                 goto error;
 
-            snprintf(pVal, MAX_INT_STR, "%ld", value);
+            qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             cNum = STR_AP_ENERGY_DETECT_TH;
             ini = INI_CONF_FILE;
             break;
         case eCMD_SET_CHANNEL_RANGE:
             ALOGE("eCMD_SET_CHANNEL_RANGE pcmd :%s\n", pcmd);
             value = qsap_set_channel_range(pcmd);
-           *plen = snprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS :
+           *plen = qsap_scnprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS :
                              ERR_UNKNOWN);
             return;
 
@@ -3004,7 +2999,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     return;
 
 error:
-    *plen = snprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
+    *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
     return;
 }
 
@@ -3012,13 +3007,13 @@ error:
  * @brief
  *      Initiate the command and return response
  * @param pcmd string containing the command request
- *     The format of the command is 
+ *     The format of the command is
  *         get param=value
  *             or
  *         set param=value
  * @param presp buffer to store the command response
  * @param plen length of the respone buffer
- * @return 
+ * @return
  *         void
 */
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
@@ -3038,11 +3033,11 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
     }
 
     else {
-        *plen = snprintf(presp, *plen, "%s", ERR_INVALIDREQ);
+        *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALIDREQ);
     }
 
     ALOGD("CMD OUTPUT [%s]\nlen :%lu\n\n", presp, *plen);
-    
+
     return;
 }
 
@@ -3078,10 +3073,10 @@ int qsapsetSoftap(int argc, char *argv[])
 
     /** set SSID */
     if(argc > 3) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set ssid=%s",argv[3]);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set ssid=%s",argv[3]);
     }
     else {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set ssid=%s_%d", DEFAULT_SSID, rand());
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set ssid=%s_%d", DEFAULT_SSID, rand());
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3128,10 +3123,10 @@ int qsapsetSoftap(int argc, char *argv[])
         else if(!strcmp(argv[6], "wpa2-psk"))
             sec = SEC_MODE_WPA2_PSK;
 
-        snprintf(cmdbuf, CMD_BUF_LEN, "set security_mode=%d",sec);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set security_mode=%d",sec);
     }
     else {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set security_mode=%d", DEFAULT_AUTH_ALG);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf) , "set security_mode=%d", DEFAULT_AUTH_ALG);
     }
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
@@ -3147,10 +3142,10 @@ int qsapsetSoftap(int argc, char *argv[])
         if(argc > 7) {
             /* If the input passphrase is more than 63 characters, consider first 63 characters only*/
             if ( strlen(argv[7]) > 63 ) argv[7][63] = '\0';
-            snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[7]);
+            qsap_scnprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[7]);
         }
         else {
-            snprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s", DEFAULT_PASSPHRASE);
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set wpa_passphrase=%s", DEFAULT_PASSPHRASE);
         }
     }
 
@@ -3162,7 +3157,7 @@ int qsapsetSoftap(int argc, char *argv[])
 
     rlen = RECV_BUF_LEN;
 
-    snprintf(cmdbuf, CMD_BUF_LEN, "set commit");
+    qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set commit");
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
