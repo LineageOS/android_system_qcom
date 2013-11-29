@@ -266,12 +266,12 @@ void qsap_send_module_down_indication(void)
 
      /* Equivalent to: iwpriv wlan0 sendModuleInd */
      if ((s = socket(PF_INET, SOCK_DGRAM, 0)) >= 0) {
-        strncpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
+        strlcpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
         wrq.u.data.length = 0; /* No Set arguments */
         wrq.u.mode = 5; /* WE_MODULE_DOWN_IND sub-command */
         ret = ioctl(s, (SIOCIWFIRSTPRIV + 1), &wrq);
         if (ret < 0 ) {
-            strncpy(wrq.ifr_name, "softap.0", IFNAMSIZ);
+            strlcpy(wrq.ifr_name, "softap.0", IFNAMSIZ);
             ret = ioctl(s, (SIOCIWFIRSTPRIV + 1), &wrq);
             if (ret < 0 ) {
                ALOGE("ioctl failed: %s", strerror(errno));
@@ -295,7 +295,7 @@ s32 qsap_send_init_ap(void)
 
      /* Equivalent to: iwpriv wlan0 initAP */
      if ((s = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
-        strncpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
+        strlcpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
         wrq.u.data.length = 0; /* No Set arguments */
         wrq.u.data.flags = 2; /* WE_INIT_AP sub-command */
         ret = ioctl(s, (SIOCIWFIRSTPRIV + 6), &wrq);
@@ -323,7 +323,7 @@ s32 qsap_send_exit_ap(void)
 
      /* Equivalent to: iwpriv wlan0 exitAP */
      if ((s = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
-        strncpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
+        strlcpy(wrq.ifr_name, "wlan0", IFNAMSIZ);
         wrq.u.data.length = 0; /* No Set arguments */
         wrq.u.data.flags = 3;  /*WE_EXIT_AP sub-command */
 
@@ -409,7 +409,7 @@ s32 wifi_qsap_stop_bss(void)
         return eERR_STOP_BSS;
     }
 
-    strncpy(wrq.ifr_name, iface, sizeof(wrq.ifr_name));
+    strlcpy(wrq.ifr_name, iface, sizeof(wrq.ifr_name));
     wrq.u.data.length = sizeof(cmd);
     wrq.u.data.pointer = cmd;
     wrq.u.data.flags = 0;
