@@ -3055,7 +3055,6 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
     argv[5] = CHANNEL
     argv[6] = SECURITY,
     argv[7] = KEY,
-    argv[8] = COMMIT,
 */
 int qsapsetSoftap(int argc, char *argv[])
 {
@@ -3063,6 +3062,7 @@ int qsapsetSoftap(int argc, char *argv[])
     char respbuf[RECV_BUF_LEN];
     unsigned long int rlen = RECV_BUF_LEN;
     int i;
+    int hidden = 0;
     int sec = SEC_MODE_NONE;
 
     ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
@@ -3087,7 +3087,10 @@ int qsapsetSoftap(int argc, char *argv[])
 
     rlen = RECV_BUF_LEN;
     if (argc > 4) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set ignore_broadcast_ssid=%d", atoi(argv[4]));
+        if (strcmp(argv[4], "hidden") == 0) {
+             hidden = 1;
+        }
+        snprintf(cmdbuf, CMD_BUF_LEN, "set ignore_broadcast_ssid=%d", hidden);
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
         if(strncmp("success", respbuf, rlen) != 0) {
             ALOGE("Failed to set ignore_broadcast_ssid \n");
