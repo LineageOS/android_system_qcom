@@ -3172,6 +3172,20 @@ int qsapsetSoftap(int argc, char *argv[])
     return 0;
 }
 
+
+static int check_for_config_file_size(FILE *fp)
+{
+   int length = 0;
+
+   if( NULL != fp )
+   {
+      fseek(fp, 0L, SEEK_END);
+      length = ftell(fp);
+   }
+
+   return length;
+}
+
 void check_for_configuration_files(void)
 {
     FILE * fp;
@@ -3184,6 +3198,11 @@ void check_for_configuration_files(void)
         wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
     }
     else {
+
+        /* The configuration file could be of 0 byte size, replace with default */
+        if (check_for_config_file_size(fp) <= 0)
+            wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
+
         fclose(fp);
     }
 
@@ -3192,6 +3211,11 @@ void check_for_configuration_files(void)
         wifi_qsap_reset_to_default(ACCEPT_LIST_FILE, DEFAULT_ACCEPT_LIST_FILE_PATH);
     }
     else {
+
+        /* The configuration file could be of 0 byte size, replace with default */
+        if (check_for_config_file_size(fp) <= 0)
+            wifi_qsap_reset_to_default(ACCEPT_LIST_FILE, DEFAULT_ACCEPT_LIST_FILE_PATH);
+
         fclose(fp);
     }
 
@@ -3200,6 +3224,11 @@ void check_for_configuration_files(void)
         wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
     }
     else {
+
+        /* The configuration file could be of 0 byte size, replace with default */
+        if (check_for_config_file_size(fp) <= 0)
+            wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
+
         fclose(fp);
     }
 
