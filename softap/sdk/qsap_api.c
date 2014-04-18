@@ -152,6 +152,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "setchannelrange",       NULL             },
     { "autochannel",           NULL             },
     { "ieee80211w",            NULL             },
+    { "wpa_key_mgmt",          NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
