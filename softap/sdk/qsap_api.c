@@ -1987,6 +1987,11 @@ s16 wifi_qsap_reset_to_default(s8 *pcfgfile, s8 *pdefault)
     if(eERR_UNKNOWN == rename(buf, pcfgfile))
         status = eERR_CONF_FILE;
 
+    if (chown(pcfgfile, AID_WIFI, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pcfgfile, AID_WIFI, strerror(errno));
+    }
+
     /** Remove the temporary file. Dont care the return value */
     unlink(buf);
 
