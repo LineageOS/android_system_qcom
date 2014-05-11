@@ -3137,7 +3137,7 @@ int qsapsetSoftap(int argc, char *argv[])
     ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
 
     for ( i=0; i<argc;i++) {
-        ALOGD("ARG: %d - %s\n", i+1, argv[i]);
+        ALOGV("ARG: %d - %s\n", i+1, argv[i]);
     }
 
     /* set interface */
