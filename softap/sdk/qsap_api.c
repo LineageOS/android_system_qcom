@@ -304,7 +304,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
     s8 buf[MAX_CONF_LINE_LEN+1];
     s16 len, result = FALSE;
 
-    ALOGD("cmd=%s, Val:%s, INI:%ld \n", pcmd->name, pVal, inifile);
+    ALOGV("cmd=%s, Val:%s, INI:%ld \n", pcmd->name, pVal, inifile);
 
     /** Open the configuration file */
     fcfg = fopen(pfile, "r");
@@ -339,7 +339,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
             if(pline[len] == '=') {
                 qsap_scnprintf(buf, sizeof(buf), "%s=%s\n", pcmd->name, pVal);
                 result = TRUE;
-                ALOGD("Updated:%s\n", buf);
+                ALOGV("Updated:%s\n", buf);
             }
         }
 
@@ -354,7 +354,7 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
         /* Add the new line at the end of file */
         qsap_scnprintf(buf, sizeof(buf), "%s=%s\n", pcmd->name, pVal);
         fprintf(ftmp, "%s", buf);
-        ALOGD("Adding a new line in %s file: [%s] \n", inifile ? "inifile" : "hostapd.conf", buf);
+        ALOGV("Adding a new line in %s file: [%s] \n", inifile ? "inifile" : "hostapd.conf", buf);
     }
 
     if(inifile) {
@@ -932,7 +932,7 @@ static void qsap_remove_from_file(s8 *pfile, s8 *pVal, s8 *presp, u32 *plen)
 */
 static void qsap_update_mac_list(s8 *pfile, esap_cmd_t cNum, s8 *pVal, s8 *presp, u32 *plen)
 {
-    ALOGD("%s : Updating file %s \n", __func__, pfile);
+    ALOGV("%s : Updating file %s \n", __func__, pfile);
 
     switch(cNum) {
         case eCMD_ADD_TO_ALLOW:
@@ -1087,7 +1087,7 @@ static int qsap_read_mac_address(s8 *presp, u32 *plen)
 
     ptr++;
 
-    ALOGD("MAC :%s \n", ptr);
+    ALOGV("MAC :%s \n", ptr);
     if(TRUE == isValid_MAC_address(ptr)) {
         nRet = eSUCCESS;
     }
@@ -1123,7 +1123,7 @@ static void qsap_read_wps_state(s8 *presp, u32 *plen)
 
     if(NULL == (pstate = qsap_get_config_value(pconffile, &cmd_list[eCMD_WPS_STATE], presp, &tlen))) {
         /** unable to read the wps configuration, WPS is disabled !*/
-        ALOGD("%s :wps_state not in cfg file \n", __func__);
+        ALOGV("%s :wps_state not in cfg file \n", __func__);
         status = DISABLE;
     }
     else {
@@ -1178,9 +1178,9 @@ int qsap_get_operating_channel(s32 *pchan)
         goto error;
     }
 
-    ALOGE("Recv len :%d \n", wrq.u.data.length);
+    ALOGV("Recv len :%d \n", wrq.u.data.length);
     *pchan = *(int *)(&wrq.u.name[0]);
-    ALOGE("Operating channel :%ld \n", *pchan);
+    ALOGV("Operating channel :%ld \n", *pchan);
     close(sock);
     return eSUCCESS;
 
@@ -1211,7 +1211,7 @@ int qsap_get_sap_auto_channel_selection(s32 *pautochan)
 
     if(NULL == (pif = qsap_get_config_value(pconffile,
                                  &qsap_str[STR_INTERFACE], interface, &len))) {
-        ALOGD("%s :interface error \n", __func__);
+        ALOGV("%s :interface error \n", __func__);
         goto error;
     }
 
@@ -1219,7 +1219,7 @@ int qsap_get_sap_auto_channel_selection(s32 *pautochan)
 
      sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        ALOGD("%s :socket error \n", __func__);
+        ALOGV("%s :socket error \n", __func__);
         goto error;
     }
 
@@ -1242,9 +1242,9 @@ int qsap_get_sap_auto_channel_selection(s32 *pautochan)
         goto error;
     }
 
-    ALOGD("Recv len :%d \n", wrq.u.data.length);
+    ALOGV("Recv len :%d \n", wrq.u.data.length);
     *pautochan = *(int *)(&wrq.u.name[0]);
-    ALOGD("Sap auto channel selection pautochan=%ld \n", *pautochan);
+    ALOGV("Sap auto channel selection pautochan=%ld \n", *pautochan);
     close(sock);
     return eSUCCESS;
 
@@ -1272,7 +1272,7 @@ int qsap_get_mode(s32 *pmode)
     *pmode = -1;
     if(NULL == (pif = qsap_get_config_value(pconffile,
                                  &qsap_str[STR_INTERFACE], interface, &len))) {
-        ALOGD("%s :interface error \n", __func__);
+        ALOGV("%s :interface error \n", __func__);
         goto error;
     }
 
@@ -1280,7 +1280,7 @@ int qsap_get_mode(s32 *pmode)
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock < 0) {
-        ALOGD("%s :socket error \n", __func__);
+        ALOGV("%s :socket error \n", __func__);
         goto error;
     }
 
@@ -1384,7 +1384,7 @@ int qsap_set_channel_range(s8 *buf)
         goto error;
     }
 
-    ALOGE("Recv len :%d\n", wrq.u.data.length);
+    ALOGV("Recv len :%d\n", wrq.u.data.length);
 
     close(sock);
     return eSUCCESS;
@@ -1402,7 +1402,7 @@ int qsap_read_channel(s8 *pfile, struct Command *pcmd, s8 *presp, u32 *plen, s8 
 
    if(eSUCCESS == qsap_get_operating_channel(&chan)) {
             *plen = qsap_scnprintf(presp, len, "%s %s=%lu", SUCCESS, pcmd->name, chan);
-             ALOGD("presp :%s\n", presp);
+             ALOGV("presp :%s\n", presp);
    } else {
           *plen = qsap_scnprintf(presp, len, "%s", ERR_UNKNOWN);
    }
@@ -1884,7 +1884,7 @@ static s16 is_valid_wep_key(s8 *pwep, s8 *pkey, s16 len)
                 weplen--;
                 while(weplen--) {
                     if(0 == isascii(pwep[weplen])) {
-                        ALOGD("%c not ascii \n", pwep[weplen]);
+                        ALOGV("%c not ascii \n", pwep[weplen]);
                         return FALSE;
                     }
                 }
@@ -2030,7 +2030,7 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
         goto error;
     }
 
-    ALOGD("Connect to :%s\n", ptr);
+    ALOGV("Connect to :%s\n", ptr);
 
     sock = socket(PF_UNIX, SOCK_DGRAM, 0);
     if(sock < 0) {
@@ -2050,7 +2050,7 @@ static int qsap_send_cmd_to_hostapd(s8 *pcmd)
 
     ser.sun_family = AF_UNIX;
     qsap_scnprintf(ser.sun_path, sizeof(ser.sun_path), "%s", ptr);
-    ALOGD("Connect to: %s,(%d)\n", ser.sun_path, sock);
+    ALOGV("Connect to: %s,(%d)\n", ser.sun_path, sock);
 
     ret = connect(sock, (struct sockaddr *)&ser, sizeof(ser));
     if(ret < 0) {
@@ -2205,7 +2205,7 @@ static void qsap_config_wps_method(s8 *pVal, s8 *presp, u32 *plen)
         qsap_scnprintf(buf, sizeof(buf), "WPS_PBC");
     else {
         if(strlen(ptr) < WPS_KEY_LEN) {
-            ALOGD("%s :Invalid WPS key length\n", __func__);
+            ALOGV("%s :Invalid WPS key length\n", __func__);
             *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_PARAM);
             return;
         }
@@ -2994,7 +2994,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     }
 
     if(ini == INI_CONF_FILE) {
-        ALOGD("WRITE TO INI FILE :%s\n", qsap_str[cNum].name);
+        ALOGV("WRITE TO INI FILE :%s\n", qsap_str[cNum].name);
         qsap_write_cfg(fIni, &qsap_str[cNum], pVal, presp, plen, ini);
     }
     else {
@@ -3023,7 +3023,7 @@ error:
 */
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 {
-    ALOGD("CMD INPUT  [%s][%lu]\n", pcmd, *plen);
+    ALOGV("CMD INPUT  [%s][%lu]\n", pcmd, *plen);
     /* Skip any blank spaces */
     SKIP_BLANK_SPACE(pcmd);
 
@@ -3041,7 +3041,7 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
         *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALIDREQ);
     }
 
-    ALOGD("CMD OUTPUT [%s]\nlen :%lu\n\n", presp, *plen);
+    ALOGV("CMD OUTPUT [%s]\nlen :%lu\n\n", presp, *plen);
 
     return;
 }
@@ -3070,7 +3070,7 @@ int qsapsetSoftap(int argc, char *argv[])
     int hidden = 0;
     int sec = SEC_MODE_NONE;
 
-    ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
+    ALOGV("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
 
     for ( i=0; i<argc;i++) {
         ALOGV("ARG: %d - %s\n", i+1, argv[i]);
