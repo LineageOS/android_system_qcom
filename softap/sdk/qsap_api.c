@@ -1717,7 +1717,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_REGULATORY_DOMAIN:
-                qsap_read_cfg(fIni, &qsap_str[STR_802DOT11D_IN_INI], presp, plen, cmd_list[eCMD_REGULATORY_DOMAIN].name, GET_ENABLED_ONLY);
+                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_RTS_THRESHOLD:
