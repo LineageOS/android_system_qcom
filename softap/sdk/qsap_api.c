@@ -3196,7 +3196,6 @@ void check_for_configuration_files(void)
     FILE * fp;
 
     /* Check if configuration files are present, if not create the default files */
-    mkdir("/data/hostapd", 0771);
 
     /* If configuration file does not exist copy the default file */
     if ( NULL == (fp = fopen(CONFIG_FILE, "r")) ) {
