@@ -54,7 +54,6 @@
 
 #include "qsap_api.h"
 #include "qsap.h"
-#include "libwpa_client/wpa_ctrl.h"
 
 #include <sys/system_properties.h>
 
