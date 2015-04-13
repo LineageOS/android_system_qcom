@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3ac371cc_16edba8b",
+        "filename": "softap/sdk/qsap.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 598,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2015-04-13T17:20:16Z",
+      "side": 1,
+      "message": "line length, might be better to split up this statement as well.",
+      "revId": "a51136993f7d87ffc69cfab833346cd3a99605c5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
