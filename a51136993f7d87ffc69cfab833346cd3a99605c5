@@ -16,6 +16,24 @@
       "revId": "a51136993f7d87ffc69cfab833346cd3a99605c5",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "3ac371cc_992c3dad",
+        "filename": "softap/sdk/qsap.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 598,
+      "author": {
+        "id": 6186
+      },
+      "writtenOn": "2015-04-14T06:29:57Z",
+      "side": 1,
+      "message": "I copied this directly from other qsap call in qsap_api.c, so I kept it as it was :|",
+      "parentUuid": "3ac371cc_16edba8b",
+      "revId": "a51136993f7d87ffc69cfab833346cd3a99605c5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
