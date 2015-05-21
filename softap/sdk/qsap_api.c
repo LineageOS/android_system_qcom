@@ -153,6 +153,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "autochannel",           NULL             },
     { "ieee80211w",            NULL             },
     { "wpa_key_mgmt",          NULL             },
+    { "max_num_sta",           "8"              },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -2605,6 +2606,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
             break;
 
+        case eCMD_SET_MAX_CLIENTS:
+            value = strlen(pVal);
+            break;
         case eCMD_BSSID:
             value = atoi(pVal);
             if(FALSE == IS_VALID_BSSID(value))
@@ -3163,6 +3167,16 @@ int qsapsetSoftap(int argc, char *argv[])
         return -1;
     }
 
+    rlen = RECV_BUF_LEN;
+    if(argc > 8) {
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set max_num_sta=%d",atoi(argv[8]));
+    }
+    (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
+
+    if(strncmp("success", respbuf, rlen) != 0) {
+        ALOGE("Failed to set maximun client connections number \n");
+        return -1;
+    }
     rlen = RECV_BUF_LEN;
 
     qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set commit");
