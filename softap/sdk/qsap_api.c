@@ -706,6 +706,40 @@ static s8 *qsap_get_allow_deny_file_name(s8 *pcfgfile, struct Command * pcmd, s8
     return NULL;
 }
 
+int qsap_hostd_exec(int argc, char ** argv)  {
+
+#define MAX_CMD_SIZE 256
+    char qcCmdBuf[MAX_CMD_SIZE], *pCmdBuf;
+    u32 len = MAX_CMD_SIZE;
+    int i = 2, ret;
+
+    if ( argc < 4 ) {
+        ALOGD("failure: invalid arguments");
+        return -1;
+    }
+
+    argc -= 2;
+    pCmdBuf = qcCmdBuf;
+
+    while (argc--) {
+        ret = snprintf(pCmdBuf, len, " %s", argv[i]);
+        if ((ret < 0) || (ret >= (int)len)) {
+            /* Error case */
+            /* TODO: Command too long send the error message */
+            *pCmdBuf = '\0';
+             break;
+        }
+        ALOGD("argv[%d] (%s)",i, argv[i]);
+        pCmdBuf += ret;
+        len -= ret;
+        i++;
+    }
+
+    ALOGD("QCCMD data (%s)", pCmdBuf);
+    len = MAX_CMD_SIZE;
+    qsap_hostd_exec_cmd(qcCmdBuf, qcCmdBuf, (u32*)&len);
+    return 0;
+}
 /** Function to identify a valid MAC address */
 static int isValid_MAC_address(char *pMac)
 {

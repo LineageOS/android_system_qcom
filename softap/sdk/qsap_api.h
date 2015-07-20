@@ -577,6 +577,7 @@ typedef struct sap_auto_channel_info {
 #define IS_VALID_ENERGY_DETECT_TH(x) ((((x >= AP_ENERGY_DETECT_TH_MIN) && (x <= AP_ENERGY_DETECT_TH_MAX)) ||( x == 128)) ? TRUE : FALSE)
 
 /** Function declartion */
+int qsap_hostd_exec(int argc, char ** argv);
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen);
 s8 *qsap_get_config_value(s8 *pfile, struct Command *pcmd, s8 *pbuf, u32 *plen);
 int qsapsetSoftap(int argc, char *argv[]);
