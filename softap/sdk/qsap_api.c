@@ -154,6 +154,10 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "ieee80211w",            NULL             },
     { "wpa_key_mgmt",          NULL             },
     { "max_num_sta",           "8"              },
+    { "ieee80211ac",           NULL             },
+    { "vht_oper_chwidth",      NULL             },
+    { "chanlist",              NULL             },
+    { "ht_capab",              NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {

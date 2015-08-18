@@ -325,6 +325,10 @@ typedef enum esap_cmd {
     eCMD_IEEE80211W          = 64,
     eCMD_WPA_KEY_MGMT        = 65,
     eCMD_SET_MAX_CLIENTS     = 66,
+    eCMD_IEEE80211AC         = 67,
+    eCMD_VHT_OPER_CH_WIDTH   = 68,
+    eCMD_ACS_CHAN_LIST       = 69,
+    eCMD_HT_CAPAB            = 70,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
