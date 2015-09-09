@@ -1748,15 +1748,9 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_FRAG_THRESHOLD:
-                qsap_read_cfg(fIni, &qsap_str[STR_FRAG_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_FRAG_THRESHOLD].name, GET_ENABLED_ONLY);
-                break;
-
         case eCMD_REGULATORY_DOMAIN:
-                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
-                break;
-
         case eCMD_RTS_THRESHOLD:
-                qsap_read_cfg(fIni, &qsap_str[STR_RTS_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_RTS_THRESHOLD].name, GET_ENABLED_ONLY);
+                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_ALLOW_LIST: /* fall through */
@@ -1775,7 +1769,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_WMM_STATE:
-                qsap_read_cfg(fIni, &qsap_str[STR_WMM_IN_INI], presp, plen, cmd_list[eCMD_WMM_STATE].name, GET_ENABLED_ONLY);
+                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_WPS_STATE:
@@ -2905,8 +2899,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
 
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
-            cNum = STR_WMM_IN_INI;
-            ini = INI_CONF_FILE;
             break;
         case eCMD_WPS_STATE:
             value = atoi(pVal);
@@ -2937,9 +2929,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_FRAG_THRESHOLD(value))
                 goto error;
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
-
-            cNum = STR_FRAG_THRESHOLD_IN_INI;
-            ini = INI_CONF_FILE;
             break;
 
         case eCMD_REGULATORY_DOMAIN:
@@ -2956,8 +2945,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_RTS_THRESHOLD(value))
                 goto error;
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
-            cNum = STR_RTS_THRESHOLD_IN_INI;
-            ini = INI_CONF_FILE;
             break;
 
         case eCMD_GTK_TIMEOUT:
