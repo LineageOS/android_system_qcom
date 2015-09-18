@@ -3243,6 +3243,7 @@ static int check_for_config_file_size(FILE *fp)
 void check_for_configuration_files(void)
 {
     FILE * fp;
+    char *pfile;
 
     /* Check if configuration files are present, if not create the default files */
 
@@ -3272,6 +3273,18 @@ void check_for_configuration_files(void)
         fclose(fp);
     }
 
+    /* Provide read and write permissions to the owner */
+    pfile = ACCEPT_LIST_FILE;
+    if (chmod(pfile, 0660) < 0) {
+        ALOGE("Error changing permissions of %s to 0660: %s",
+                pfile, strerror(errno));
+    }
+
+    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pfile, AID_WIFI, strerror(errno));
+    }
+
     /* If deny MAC list file does not exist, copy the default file */
     if ( NULL == (fp = fopen(DENY_LIST_FILE, "r")) ) {
         wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
@@ -3283,6 +3296,18 @@ void check_for_configuration_files(void)
             wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
 
         fclose(fp);
+    }
+
+    /* Provide read and write permissions to the owner */
+    pfile = DENY_LIST_FILE;
+    if (chmod(pfile, 0660) < 0) {
+        ALOGE("Error changing permissions of %s to 0660: %s",
+                pfile, strerror(errno));
+    }
+
+    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pfile, AID_WIFI, strerror(errno));
     }
 
     return;
