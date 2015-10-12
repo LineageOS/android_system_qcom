@@ -39,8 +39,8 @@ typedef unsigned char      u8;
 typedef char               s8;
 typedef unsigned short int u16;
 typedef signed short int   s16;
-typedef unsigned long int  u32;
-typedef signed long int    s32;
+typedef unsigned int       u32;
+typedef signed int         s32;
 
 /** Success and error messages */
 #define SUCCESS                     "success"
@@ -325,6 +325,11 @@ typedef enum esap_cmd {
     eCMD_GET_AUTO_CHANNEL    = 63,
     eCMD_IEEE80211W          = 64,
     eCMD_WPA_KEY_MGMT        = 65,
+    eCMD_SET_MAX_CLIENTS     = 66,
+    eCMD_IEEE80211AC         = 67,
+    eCMD_VHT_OPER_CH_WIDTH   = 68,
+    eCMD_ACS_CHAN_LIST       = 69,
+    eCMD_HT_CAPAB            = 70,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
@@ -577,6 +582,7 @@ typedef struct sap_auto_channel_info {
 #define IS_VALID_ENERGY_DETECT_TH(x) ((((x >= AP_ENERGY_DETECT_TH_MIN) && (x <= AP_ENERGY_DETECT_TH_MAX)) ||( x == 128)) ? TRUE : FALSE)
 
 /** Function declartion */
+int qsap_hostd_exec(int argc, char ** argv);
 void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen);
 s8 *qsap_get_config_value(s8 *pfile, struct Command *pcmd, s8 *pbuf, u32 *plen);
 int qsapsetSoftap(int argc, char *argv[]);

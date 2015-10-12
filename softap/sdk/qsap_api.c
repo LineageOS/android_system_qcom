@@ -153,6 +153,11 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "autochannel",           NULL             },
     { "ieee80211w",            NULL             },
     { "wpa_key_mgmt",          NULL             },
+    { "max_num_sta",           "8"              },
+    { "ieee80211ac",           NULL             },
+    { "vht_oper_chwidth",      NULL             },
+    { "chanlist",              NULL             },
+    { "ht_capab",              NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -705,6 +710,40 @@ static s8 *qsap_get_allow_deny_file_name(s8 *pcfgfile, struct Command * pcmd, s8
     return NULL;
 }
 
+int qsap_hostd_exec(int argc, char ** argv)  {
+
+#define MAX_CMD_SIZE 256
+    char qcCmdBuf[MAX_CMD_SIZE], *pCmdBuf;
+    u32 len = MAX_CMD_SIZE;
+    int i = 2, ret;
+
+    if ( argc < 4 ) {
+        ALOGD("failure: invalid arguments");
+        return -1;
+    }
+
+    argc -= 2;
+    pCmdBuf = qcCmdBuf;
+
+    while (argc--) {
+        ret = snprintf(pCmdBuf, len, " %s", argv[i]);
+        if ((ret < 0) || (ret >= (int)len)) {
+            /* Error case */
+            /* TODO: Command too long send the error message */
+            *pCmdBuf = '\0';
+             break;
+        }
+        ALOGD("argv[%d] (%s)",i, argv[i]);
+        pCmdBuf += ret;
+        len -= ret;
+        i++;
+    }
+
+    ALOGD("QCCMD data (%s)", pCmdBuf);
+    len = MAX_CMD_SIZE;
+    qsap_hostd_exec_cmd(qcCmdBuf, qcCmdBuf, (u32*)&len);
+    return 0;
+}
 /** Function to identify a valid MAC address */
 static int isValid_MAC_address(char *pMac)
 {
@@ -1713,15 +1752,9 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_FRAG_THRESHOLD:
-                qsap_read_cfg(fIni, &qsap_str[STR_FRAG_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_FRAG_THRESHOLD].name, GET_ENABLED_ONLY);
-                break;
-
         case eCMD_REGULATORY_DOMAIN:
-                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
-                break;
-
         case eCMD_RTS_THRESHOLD:
-                qsap_read_cfg(fIni, &qsap_str[STR_RTS_THRESHOLD_IN_INI], presp, plen, cmd_list[eCMD_RTS_THRESHOLD].name, GET_ENABLED_ONLY);
+                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_ALLOW_LIST: /* fall through */
@@ -1740,7 +1773,7 @@ static void qsap_get_from_config(esap_cmd_t cNum, s8 *presp, u32 *plen)
                 break;
 
         case eCMD_WMM_STATE:
-                qsap_read_cfg(fIni, &qsap_str[STR_WMM_IN_INI], presp, plen, cmd_list[eCMD_WMM_STATE].name, GET_ENABLED_ONLY);
+                qsap_read_cfg(pconffile, &cmd_list[cNum], presp, plen, NULL, GET_ENABLED_ONLY);
                 break;
 
         case eCMD_WPS_STATE:
@@ -2610,6 +2643,9 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
             break;
 
+        case eCMD_SET_MAX_CLIENTS:
+            value = strlen(pVal);
+            break;
         case eCMD_BSSID:
             value = atoi(pVal);
             if(FALSE == IS_VALID_BSSID(value))
@@ -2872,8 +2908,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 goto error;
 
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
-            cNum = STR_WMM_IN_INI;
-            ini = INI_CONF_FILE;
             break;
         case eCMD_WPS_STATE:
             value = atoi(pVal);
@@ -2904,9 +2938,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_FRAG_THRESHOLD(value))
                 goto error;
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
-
-            cNum = STR_FRAG_THRESHOLD_IN_INI;
-            ini = INI_CONF_FILE;
             break;
 
         case eCMD_REGULATORY_DOMAIN:
@@ -2923,8 +2954,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             if(TRUE != IS_VALID_RTS_THRESHOLD(value))
                 goto error;
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
-            cNum = STR_RTS_THRESHOLD_IN_INI;
-            ini = INI_CONF_FILE;
             break;
 
         case eCMD_GTK_TIMEOUT:
@@ -2938,7 +2967,6 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = atoi(pVal);
             if(TRUE != IS_VALID_TX_POWER(value))
                 goto error;
-            qsap_set_ini_filename();
             qsap_scnprintf(pVal, strlen(pVal)+1, "%ld", value);
             cNum = STR_TX_POWER_IN_INI;
             ini = INI_CONF_FILE;
@@ -3033,6 +3061,8 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
     SKIP_BLANK_SPACE(pcmd);
 
     check_for_configuration_files();
+    if(fIni == NULL)
+        qsap_set_ini_filename();
 
     if(!strncmp(pcmd, Cmd_req[eCMD_GET], strlen(Cmd_req[eCMD_GET])) && isblank(pcmd[strlen(Cmd_req[eCMD_GET])])) {
         qsap_handle_get_request(pcmd, presp, plen);
@@ -3169,6 +3199,16 @@ int qsapsetSoftap(int argc, char *argv[])
     }
 
     rlen = RECV_BUF_LEN;
+    if(argc > 8) {
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set max_num_sta=%d",atoi(argv[8]));
+    }
+    (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
+
+    if(strncmp("success", respbuf, rlen) != 0) {
+        ALOGE("Failed to set maximun client connections number \n");
+        return -1;
+    }
+    rlen = RECV_BUF_LEN;
 
     qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set commit");
 
@@ -3199,9 +3239,9 @@ static int check_for_config_file_size(FILE *fp)
 void check_for_configuration_files(void)
 {
     FILE * fp;
+    char *pfile;
 
     /* Check if configuration files are present, if not create the default files */
-    mkdir("/data/hostapd", 0771);
 
     /* If configuration file does not exist copy the default file */
     if ( NULL == (fp = fopen(CONFIG_FILE, "r")) ) {
@@ -3229,6 +3269,18 @@ void check_for_configuration_files(void)
         fclose(fp);
     }
 
+    /* Provide read and write permissions to the owner */
+    pfile = ACCEPT_LIST_FILE;
+    if (chmod(pfile, 0660) < 0) {
+        ALOGE("Error changing permissions of %s to 0660: %s",
+                pfile, strerror(errno));
+    }
+
+    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pfile, AID_WIFI, strerror(errno));
+    }
+
     /* If deny MAC list file does not exist, copy the default file */
     if ( NULL == (fp = fopen(DENY_LIST_FILE, "r")) ) {
         wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
@@ -3240,6 +3292,18 @@ void check_for_configuration_files(void)
             wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
 
         fclose(fp);
+    }
+
+    /* Provide read and write permissions to the owner */
+    pfile = DENY_LIST_FILE;
+    if (chmod(pfile, 0660) < 0) {
+        ALOGE("Error changing permissions of %s to 0660: %s",
+                pfile, strerror(errno));
+    }
+
+    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
+        ALOGE("Error changing group ownership of %s to %d: %s",
+                pfile, AID_WIFI, strerror(errno));
     }
 
     return;

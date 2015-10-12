@@ -319,7 +319,7 @@ JNIEXPORT jstring JNICALL
     char       code[32] = {0};
     int        connect_retry;
 
-    strncpy(cmd, "softap qccmd ", sizeof(cmd));
+    strlcpy(cmd, "softap qccmd ", sizeof(cmd));
 
     pcmd = (char *) ((*env)->GetStringUTFChars(env, jcmd, NULL));
 
@@ -330,12 +330,12 @@ JNIEXPORT jstring JNICALL
 
     ALOGD("Received Command: %s\n", pcmd);
 
-    if ((strlen(cmd) + strlen(pcmd)) > sizeof(cmd)) {
+    if ((strlen(cmd) + strlen(pcmd)) >= sizeof(cmd)) {
         UPDATE_ERROR_CODE("Command length is larger than MAX_CMD_SIZE", "");
         goto end;
     }
 
-    strcat(cmd, pcmd);
+    strlcat(cmd, pcmd, sizeof(cmd));
 
     connect_retry = 0;
 
