@@ -703,7 +703,6 @@ end:
 static s8 *qsap_get_allow_deny_file_name(s8 *pcfgfile, struct Command * pcmd, s8 *pfile, u32 *plen)
 {
     if(eSUCCESS == qsap_read_cfg(pcfgfile, pcmd, pfile, plen, NULL, GET_ENABLED_ONLY)) {
-        pfile[*plen] = '\0';
         return strchr(pfile, '=') + 1;
     }
 
