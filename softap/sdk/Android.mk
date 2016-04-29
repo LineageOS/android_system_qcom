@@ -4,7 +4,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES := $(TOP)/hardware/libhardware_legacy/wifi
+LOCAL_C_INCLUDES := $(TOP)/hardware/libhardware_legacy/wifi $(TOP)/external/libnl/include $(TOP)/external/wpa_supplicant_8/wpa_supplicant/src/drivers
 
 LOCAL_MODULE:= libqsap_sdk
 
@@ -61,7 +61,7 @@ LOCAL_SRC_FILES := qsap_api.c \
 
 LOCAL_PRELINK_MODULE := false
 
-LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_legacy
+LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_legacy libnl
 
 include $(BUILD_SHARED_LIBRARY)
 
