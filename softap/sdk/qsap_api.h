@@ -331,6 +331,8 @@ typedef enum esap_cmd {
     eCMD_HT_CAPAB            = 70,
     eCMD_IEEE80211H          = 71,
 
+    eCMD_ENABLE_WIGIG_SOFTAP = 72,
+
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
 
