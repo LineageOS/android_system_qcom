@@ -44,6 +44,8 @@ s32 commit(void);
 s32 is_softap_enabled(void);
 s32 wifi_qsap_start_softap(void);
 s32 wifi_qsap_stop_softap(void);
+s32 wifi_qsap_start_wigig_softap(void);
+s32 wifi_qsap_stop_wigig_softap(void);
 s32 wifi_qsap_reload_softap(void);
 s32 wifi_qsap_unload_wifi_sta_driver(void);
 

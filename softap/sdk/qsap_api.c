@@ -159,6 +159,8 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "chanlist",              NULL             },
     { "ht_capab",              NULL             },
     { "ieee80211h",            NULL             },
+
+    { "enable_wigig_softap",   NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -2632,6 +2634,21 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
                 status = wifi_qsap_load_driver();
             }
             *plen = qsap_scnprintf(presp, *plen, "%s", (status==eSUCCESS) ? SUCCESS : "failure Could not enable softap");
+            return;
+
+        case eCMD_ENABLE_WIGIG_SOFTAP:
+            value = atoi(pVal);
+
+            if (TRUE != IS_VALID_SOFTAP_ENABLE(value))
+                goto error;
+
+            if ( *pVal == '0' ) {
+                status = wifi_qsap_stop_wigig_softap();
+            }
+            else {
+                status = wifi_qsap_start_wigig_softap();
+            }
+            *plen = qsap_scnprintf(presp, *plen, "%s", (status==eSUCCESS) ? SUCCESS : "failure Could not enable Wigig softap");
             return;
         case eCMD_SSID:
             value = strlen(pVal);
