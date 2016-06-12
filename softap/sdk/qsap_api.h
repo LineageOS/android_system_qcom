@@ -598,6 +598,9 @@ void qsap_set_ini_filename(void);
 int qsap_set_channel_range(s8 * cmd);
 int qsap_get_sap_auto_channel_slection(s32 *pautochan);
 int qsap_get_mode(s32 *pmode);
+int qsap_prepare_softap(void);
+int qsap_unprepare_softap(void);
+int qsap_is_fst_enabled(void);
 
 #if __cplusplus
 };  // extern "C"
