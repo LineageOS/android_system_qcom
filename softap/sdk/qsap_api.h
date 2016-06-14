@@ -207,7 +207,7 @@ enum error_val {
 #define MIN_UPC_LEN  (1)
 #define MAX_UPC_LEN  (128)
 
-#define GTK_MIN   (600)
+#define GTK_MIN   (30)
 
 #define MAX_INT_STR (8)
 
