@@ -44,6 +44,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <private/android_filesystem_config.h>
+#include <net/if.h>
+#include <netlink/netlink.h>
+#include <netlink/genl/genl.h>
+#include <netlink/genl/family.h>
+#include <netlink/genl/ctrl.h>
+#include "nl80211_copy.h"
 
 #include "qsap_api.h"
 #include "qsap.h"
@@ -159,8 +165,8 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "chanlist",              NULL             },
     { "ht_capab",              NULL             },
     { "ieee80211h",            NULL             },
-
     { "enable_wigig_softap",   NULL             },
+    { "interface",             NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -3104,6 +3110,7 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 }
 
 /* netd and Froyo Native UI specific API */
+#define DEFAULT_INTFERACE    "wlan0"
 #define DEFAULT_SSID         "SOFTAP_SSID"
 #define DEFAULT_CHANNEL      4
 #define DEFAULT_PASSPHRASE   "12345678"
@@ -3132,6 +3139,16 @@ int qsapsetSoftap(int argc, char *argv[])
     for ( i=0; i<argc;i++) {
         ALOGD("ARG: %d - %s\n", i+1, argv[i]);
     }
+
+    /* set interface */
+    if (argc > 2) {
+        snprintf(cmdbuf, CMD_BUF_LEN, "set interface=%s",argv[2]);
+    }
+    else {
+        snprintf(cmdbuf, CMD_BUF_LEN, "set interface=%s", DEFAULT_INTFERACE);
+    }
+    (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
+
 
     /** set SSID */
     if(argc > 3) {
@@ -3339,4 +3356,88 @@ void qsap_set_ini_filename(void)
     } else
         ALOGE("INI FILE PROP NOT PRESENT: Use default path %s\n", fIni);
     return;
+}
+
+int qsap_add_or_remove_interface(const char *newIface , int createIface)
+{
+    const char *wlanIface = "wlan0";
+    int retVal = 0;
+    struct nl_msg *msg = NULL;
+    struct nl_cb *cb = NULL;
+    struct nl_cb *s_cb = NULL;
+    struct nl_sock *nl_sock = NULL;
+    int nl80211_id;
+    enum nl80211_iftype type = NL80211_IFTYPE_AP;
+
+    /*  Allocate a netlink socket */
+    s_cb = nl_cb_alloc(NL_CB_DEFAULT);
+    if (!s_cb) {
+        ALOGE( "Failed to allocate Netlink Socket");
+        retVal = -ENOMEM;
+        goto nla_put_failure;
+    }
+
+    nl_sock = nl_socket_alloc_cb(s_cb);
+    if (!nl_sock) {
+        ALOGE( "Netlink socket Allocation failure");
+        retVal = -ENOMEM;
+        goto nla_put_failure;
+    }
+
+    /* connect to generic netlink socket */
+    if (genl_connect(nl_sock)) {
+        ALOGE( "Netlink socket Connection failure");
+        retVal = -ENOLINK;
+        goto nla_put_failure;
+    }
+
+    nl80211_id = genl_ctrl_resolve(nl_sock, "nl80211");
+    if (nl80211_id < 0) {
+        ALOGE( "nl80211 generic netlink not found");
+        retVal = -ENOENT;
+        goto nla_put_failure;
+    }
+
+    msg = nlmsg_alloc();
+    if(!msg) {
+        ALOGE( "Failed to allocate netlink message");
+        retVal = -ENOMEM;
+        goto nla_put_failure;
+    }
+
+    cb = nl_cb_alloc(NL_CB_DEFAULT);
+    if (!cb) {
+        ALOGE( "Failed to allocate netlink callback");
+        retVal = -ENOMEM;
+        goto nla_put_failure;
+    }
+
+    if (createIface == 1) {
+       /* Issue NL80211_CMD_NEW_INTERFACE */
+       genlmsg_put( msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
+       nla_put_u32( msg, NL80211_ATTR_IFINDEX, if_nametoindex( wlanIface ));
+       NLA_PUT_STRING( msg, NL80211_ATTR_IFNAME, newIface);
+       nla_put_u32( msg, NL80211_ATTR_IFTYPE, type);
+    } else {
+       genlmsg_put( msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_DEL_INTERFACE, 0);
+       nla_put_u32( msg, NL80211_ATTR_IFINDEX, if_nametoindex( newIface ));
+    }
+
+    retVal = nl_send_auto_complete(nl_sock, msg );
+    if (retVal < 0 ) {
+        goto nla_put_failure;
+    }
+    else {
+        ALOGD("Interface %s is %s - Ok", (createIface == 1 ? "created":"removed") ,newIface);
+    }
+nla_put_failure:
+    if (nl_sock)
+        nl_socket_free(nl_sock);
+    if (s_cb)
+        nl_cb_put(s_cb);
+    if (msg)
+        nlmsg_free(msg);
+    if (cb)
+        nl_cb_put(cb);
+    return retVal;
 }
