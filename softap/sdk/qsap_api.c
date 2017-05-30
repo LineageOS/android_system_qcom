@@ -399,14 +399,6 @@ static s32 qsap_write_cfg(s8 *pfile, struct Command * pcmd, s8 *pVal, s8 *presp,
         unlink(pfile);
         return -1;
     }
-
-    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
-        ALOGE("Error changing group ownership of %s to %d: %s",
-                pfile, AID_WIFI, strerror(errno));
-        unlink(pfile);
-        return -1;
-    }
-
     if(result == eERR_UNKNOWN)
         return eERR_FEATURE_NOT_ENABLED;
 
@@ -552,14 +544,6 @@ static s32 qsap_change_cfg(s8 *pfile, struct Command * pcmd, u32 status)
         unlink(pfile);
         return -1;
     }
-
-    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
-        ALOGE("Error changing group ownership of %s to %d: %s",
-                pfile, AID_WIFI, strerror(errno));
-        unlink(pfile);
-        return -1;
-    }
-
     return 0;
 }
 
@@ -3314,12 +3298,6 @@ void check_for_configuration_files(void)
         ALOGE("Error changing permissions of %s to 0660: %s",
                 pfile, strerror(errno));
     }
-
-    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
-        ALOGE("Error changing group ownership of %s to %d: %s",
-                pfile, AID_WIFI, strerror(errno));
-    }
-
     /* If deny MAC list file does not exist, copy the default file */
     if ( NULL == (fp = fopen(DENY_LIST_FILE, "r")) ) {
         wifi_qsap_reset_to_default(DENY_LIST_FILE, DEFAULT_DENY_LIST_FILE_PATH);
@@ -3339,12 +3317,6 @@ void check_for_configuration_files(void)
         ALOGE("Error changing permissions of %s to 0660: %s",
                 pfile, strerror(errno));
     }
-
-    if (chown(pfile, AID_SYSTEM, AID_WIFI) < 0) {
-        ALOGE("Error changing group ownership of %s to %d: %s",
-                pfile, AID_WIFI, strerror(errno));
-    }
-
     return;
 }
 

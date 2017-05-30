@@ -34,7 +34,7 @@
 #if __cplusplus
 extern "C" {
 #endif
-
+#include <android/log.h>
 typedef unsigned char      u8;
 typedef char               s8;
 typedef unsigned short int u16;
