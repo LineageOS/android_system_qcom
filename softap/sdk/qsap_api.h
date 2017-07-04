@@ -88,8 +88,12 @@ enum error_val {
 #define WIFI_DRIVER_DEF_CONF_FILE        NULL
 #endif
 
+/** Configuration file name for SAP+SAP*/
+#define CONFIG_FILE_2G "/data/vendor/wifi/hostapd_dual2g.conf"
+#define CONFIG_FILE_5G "/data/vendor/wifi/hostapd_dual5g.conf"
+
 /** Configuration file name */
-#define CONFIG_FILE "/data/misc/wifi/hostapd.conf"
+#define CONFIG_FILE "/data/vendor/wifi/hostapd.conf"
 
 /** Default configuration file path */
 #define DEFAULT_CONFIG_FILE_PATH "/system/etc/hostapd/hostapd_default.conf"
@@ -242,6 +246,14 @@ enum eCmd_req {
     eCMD_SET = 1,
 
     eCMD_REQ_LAST
+};
+
+/** config request index - in the array Conf_req[] */
+enum eConf_req {
+    CONF_2g = 0,
+    CONF_5g = 1,
+
+    CONF_REQ_LAST
 };
 
 /**

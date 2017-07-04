@@ -64,7 +64,7 @@
 #define QCSAP_PARAM_GET_AUTO_CHANNEL 9
 #define WE_SET_SAP_CHANNELS  3
 
-//#define LOG_TAG "QCSDK-"
+#define LOG_TAG "QCSDK"
 
 #include "cutils/properties.h"
 #include "cutils/log.h"
@@ -82,6 +82,15 @@ static volatile int gIniUpdated = 0;
 s8 *Cmd_req[eCMD_REQ_LAST] = {
     "get",
     "set"
+};
+
+/** Supported config file requests.
+  * WANRING: The enum eConf_req in the file qsap_api.h should be
+  * updated if Conf_req[], us updated
+  */
+s8 *Conf_req[CONF_REQ_LAST] = {
+    "dual2g",
+    "dual5g"
 };
 
 /*
@@ -2512,6 +2521,15 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
 
     SKIP_BLANK_SPACE(pcmd);
 
+    if(!(strncmp(pcmd, Conf_req[CONF_2g], strlen(Conf_req[CONF_2g])))) {
+           pcmd += strlen(Conf_req[CONF_2g]);
+           SKIP_BLANK_SPACE(pcmd);
+    } else if (!(strncmp(pcmd, Conf_req[CONF_5g], strlen(Conf_req[CONF_5g])))) {
+           pcmd += strlen(Conf_req[CONF_5g]);
+           SKIP_BLANK_SPACE(pcmd);
+    } else {
+	    // DO NOTHING
+    }
     cNum = qsap_get_cmd_num(pcmd);
     if(cNum == eCMD_INVALID) {
         *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
@@ -3072,6 +3090,16 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
     /* Skip any blank spaces */
     SKIP_BLANK_SPACE(pcmd);
 
+    if(!(strncmp(pcmd, Cmd_req[eCMD_SET], strlen(Cmd_req[eCMD_SET])))) {
+       if(!(strncmp(pcmd+4, Conf_req[CONF_2g], strlen(Conf_req[CONF_2g])))) {
+           pconffile = CONFIG_FILE_2G;
+       } else if (!(strncmp(pcmd+4, Conf_req[CONF_5g], strlen(Conf_req[CONF_5g])))) {
+           pconffile = CONFIG_FILE_5G;
+       } else {
+           pconffile = CONFIG_FILE;
+       }
+    }
+
     check_for_configuration_files();
     if(fIni == NULL)
         qsap_set_ini_filename();
@@ -3267,14 +3295,14 @@ void check_for_configuration_files(void)
     /* Check if configuration files are present, if not create the default files */
 
     /* If configuration file does not exist copy the default file */
-    if ( NULL == (fp = fopen(CONFIG_FILE, "r")) ) {
-        wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
+    if ( NULL == (fp = fopen(pconffile, "r")) ) {
+        wifi_qsap_reset_to_default(pconffile, DEFAULT_CONFIG_FILE_PATH);
     }
     else {
 
         /* The configuration file could be of 0 byte size, replace with default */
         if (check_for_config_file_size(fp) <= 0)
-            wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
+            wifi_qsap_reset_to_default(pconffile, DEFAULT_CONFIG_FILE_PATH);
 
         fclose(fp);
     }
