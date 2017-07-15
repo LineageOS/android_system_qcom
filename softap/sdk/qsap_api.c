@@ -3330,6 +3330,87 @@ void qsap_set_ini_filename(void)
     return;
 }
 
+// IOCTL command to create and delete bridge interface //
+#ifndef SIOCBRADDBR
+#define SIOCBRADDBR 0x89a0
+#endif
+#ifndef SIOCBRDELBR
+#define SIOCBRDELBR 0x89a1
+#endif
+
+static int linux_set_iface_flags(int sock, const char *ifname, int dev_up)
+{
+    struct ifreq ifr;
+    int ret;
+
+    if (sock < 0)
+        return -1;
+
+    memset(&ifr, 0, sizeof(ifr));
+    strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
+
+    if (ioctl(sock, SIOCGIFFLAGS, &ifr) != 0) {
+        ret = errno ? -errno : -999;
+        ALOGE("Could not read interface %s flags: %s",
+               ifname, strerror(errno));
+        return ret;
+    }
+
+    if (dev_up) {
+        if (ifr.ifr_flags & IFF_UP)
+            return 0;
+        ifr.ifr_flags |= IFF_UP;
+    } else {
+        if (!(ifr.ifr_flags & IFF_UP))
+            return 0;
+        ifr.ifr_flags &= ~IFF_UP;
+    }
+
+    if (ioctl(sock, SIOCSIFFLAGS, &ifr) != 0) {
+        ret = errno ? -errno : -999;
+        ALOGE("Could not set interface %s flags (%s): %s",
+               ifname, dev_up ? "UP" : "DOWN", strerror(errno));
+        return ret;
+    }
+    return 0;
+}
+
+int qsap_control_bridge(int argc, char ** argv)
+{
+    int br_socket;
+
+    if (argc < 4) {
+        ALOGE("Command not supported");
+        return -1;
+    }
+
+    br_socket = socket(PF_INET, SOCK_DGRAM, 0);
+    if (br_socket < 0) {
+        ALOGE("socket(PF_INET,SOCK_DGRAM): %s",strerror(errno));
+        return -1;
+    }
+    if (!strncmp(argv[2],"create",6)) {
+        if (ioctl(br_socket, SIOCBRADDBR, argv[3]) < 0) {
+            ALOGE("Could not add bridge %s: %s", argv[3], strerror(errno));
+            return -1;
+        }
+    } else if (!strncmp(argv[2],"remove",6)) {
+        if (ioctl(br_socket, SIOCBRDELBR, argv[3]) < 0) {
+            ALOGE("Could not add remove %s: %s", argv[3], strerror(errno));
+            return -1;
+        }
+    } else if (!strncmp(argv[2],"up",2)) {
+        return linux_set_iface_flags(br_socket, argv[3], 1);
+    } else if (!strncmp(argv[2],"down",4)) {
+        return linux_set_iface_flags(br_socket, argv[3], 0);
+    } else {
+        ALOGE("Command %s not handled.", argv[2]);
+        return -1;
+    }
+
+    return 0;
+}
+
 int qsap_add_or_remove_interface(const char *newIface , int createIface)
 {
     const char *wlanIface = "wlan0";

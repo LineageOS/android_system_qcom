@@ -603,6 +603,7 @@ int qsap_get_mode(s32 *pmode);
 int qsap_prepare_softap(void);
 int qsap_unprepare_softap(void);
 int qsap_is_fst_enabled(void);
+int qsap_control_bridge(int argc, char ** argv);
 
 #if __cplusplus
 };  // extern "C"
