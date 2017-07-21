@@ -176,6 +176,8 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "ieee80211h",            NULL             },
     { "enable_wigig_softap",   NULL             },
     { "interface",             NULL             },
+    { "ssid2",                 NULL             },
+    { "bridge",                NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -2432,6 +2434,7 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, int pmode_len, s8 *tbuf,
             qsap_change_cfg(pcfg, &cmd_list[eCMD_REQUIRE_HT],ENABLE);
             /* fall through */
         case HW_MODE_N:
+        case HW_MODE_G:
         case HW_MODE_A:
             ulen = *tlen;
             qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_enable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
@@ -2662,6 +2665,8 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = strlen(pVal);
             if(SSD_MAX_LEN < value)
                 goto error;
+            /* Disable ssid2 while setting ssid */
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_SSID2], DISABLE);
             break;
 
         case eCMD_SET_MAX_CLIENTS:
@@ -3051,6 +3056,10 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
            *plen = qsap_scnprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS :
                              ERR_UNKNOWN);
             return;
+        case eCMD_SSID2:
+            /* Disable ssid while setting ssid2 */
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_SSID], DISABLE);
+            break;
 
         default: ;
             /** Do not goto error, in default case */
@@ -3129,6 +3138,7 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 #define DEFAULT_AUTH_ALG     1
 #define RECV_BUF_LEN         255
 #define CMD_BUF_LEN          255
+#define SET_BUF_LEN          15
 
 /** Command input
     argv[3] = SSID,
@@ -3145,6 +3155,8 @@ int qsapsetSoftap(int argc, char *argv[])
     int i;
     int hidden = 0;
     int sec = SEC_MODE_NONE;
+    char setCmd[SET_BUF_LEN];
+    int offset = 0;
 
     ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
 
@@ -3152,22 +3164,39 @@ int qsapsetSoftap(int argc, char *argv[])
         ALOGD("ARG: %d - %s\n", i+1, argv[i]);
     }
 
+    // check if 2nd arg is dual2g/dual5g
+    if (argc > 2) {
+        // just match 'dual'
+        if (strncmp(argv[2], Conf_req[CONF_2g], 4) == 0) {
+            snprintf(setCmd, SET_BUF_LEN, "set %s", argv[2]);
+            offset = 1;
+            argc--;
+        } else {
+            snprintf(setCmd, SET_BUF_LEN, "set");
+            offset = 0;
+        }
+    }
+
     /* set interface */
     if (argc > 2) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set interface=%s",argv[2]);
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s interface=%s", setCmd, argv[2 + offset]);
     }
     else {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set interface=%s", DEFAULT_INTFERACE);
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s interface=%s", setCmd, DEFAULT_INTFERACE);
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
 
     /** set SSID */
     if(argc > 3) {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set ssid=%s",argv[3]);
+        // In case of dual2g/5g, Set ssid2 with hex values to accomodate sapce and special characters.
+        if (offset)
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s ssid2=%s", setCmd, argv[3 + offset]);
+        else
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s ssid=%s",setCmd, argv[3]);
     }
     else {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set ssid=%s_%d", DEFAULT_SSID, rand());
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s ssid=%s_%d", setCmd, DEFAULT_SSID, rand());
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3178,10 +3207,10 @@ int qsapsetSoftap(int argc, char *argv[])
 
     rlen = RECV_BUF_LEN;
     if (argc > 4) {
-        if (strcmp(argv[4], "hidden") == 0) {
+        if (strcmp(argv[4 + offset], "hidden") == 0) {
              hidden = 1;
         }
-        snprintf(cmdbuf, CMD_BUF_LEN, "set ignore_broadcast_ssid=%d", hidden);
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s ignore_broadcast_ssid=%d", setCmd, hidden);
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
         if(strncmp("success", respbuf, rlen) != 0) {
             ALOGE("Failed to set ignore_broadcast_ssid \n");
@@ -3191,7 +3220,7 @@ int qsapsetSoftap(int argc, char *argv[])
     /** channel */
     rlen = RECV_BUF_LEN;
     if(argc > 5) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[5]));
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s channel=%d", setCmd, atoi(argv[5 + offset]));
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
         if(strncmp("success", respbuf, rlen) != 0) {
@@ -3205,22 +3234,22 @@ int qsapsetSoftap(int argc, char *argv[])
     if(argc > 6) {
 
         /**TODO : need to identify the SEC strings for "wep", "wpa", "wpa2" */
-        if(!strcmp(argv[6], "open"))
+        if(!strcmp(argv[6 + offset], "open"))
             sec = SEC_MODE_NONE;
 
-        else if(!strcmp(argv[6], "wep"))
+        else if(!strcmp(argv[6 + offset], "wep"))
             sec = SEC_MODE_WEP;
 
-        else if(!strcmp(argv[6], "wpa-psk"))
+        else if(!strcmp(argv[6 + offset], "wpa-psk"))
             sec = SEC_MODE_WPA_PSK;
 
-        else if(!strcmp(argv[6], "wpa2-psk"))
+        else if(!strcmp(argv[6 + offset], "wpa2-psk"))
             sec = SEC_MODE_WPA2_PSK;
 
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set security_mode=%d",sec);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s security_mode=%d",setCmd, sec);
     }
     else {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf) , "set security_mode=%d", DEFAULT_AUTH_ALG);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf) , "%s security_mode=%d", setCmd, DEFAULT_AUTH_ALG);
     }
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
@@ -3235,11 +3264,11 @@ int qsapsetSoftap(int argc, char *argv[])
     if ( (sec == SEC_MODE_WPA_PSK) || (sec == SEC_MODE_WPA2_PSK) ) {
         if(argc > 7) {
             /* If the input passphrase is more than 63 characters, consider first 63 characters only*/
-            if ( strlen(argv[7]) > 63 ) argv[7][63] = '\0';
-            qsap_scnprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[7]);
+            if ( strlen(argv[7 + offset]) > 63 ) argv[7 + offset][63] = '\0';
+            qsap_scnprintf(cmdbuf, CMD_BUF_LEN, "%s wpa_passphrase=%s",setCmd, argv[7 + offset]);
         }
         else {
-            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set wpa_passphrase=%s", DEFAULT_PASSPHRASE);
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s wpa_passphrase=%s", setCmd, DEFAULT_PASSPHRASE);
         }
     }
 
@@ -3251,7 +3280,7 @@ int qsapsetSoftap(int argc, char *argv[])
 
     rlen = RECV_BUF_LEN;
     if(argc > 8) {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set max_num_sta=%d",atoi(argv[8]));
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s max_num_sta=%d",setCmd, atoi(argv[8 + offset]));
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3261,7 +3290,7 @@ int qsapsetSoftap(int argc, char *argv[])
     }
     rlen = RECV_BUF_LEN;
 
-    qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set commit");
+    qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s commit", setCmd);
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3417,19 +3446,19 @@ int qsap_control_bridge(int argc, char ** argv)
         ALOGE("socket(PF_INET,SOCK_DGRAM): %s",strerror(errno));
         return -1;
     }
-    if (!strncmp(argv[2],"create",6)) {
+    if (!strncmp(argv[2],"create", 6)) {
         if (ioctl(br_socket, SIOCBRADDBR, argv[3]) < 0) {
             ALOGE("Could not add bridge %s: %s", argv[3], strerror(errno));
             return -1;
         }
-    } else if (!strncmp(argv[2],"remove",6)) {
+    } else if (!strncmp(argv[2],"remove", 6)) {
         if (ioctl(br_socket, SIOCBRDELBR, argv[3]) < 0) {
             ALOGE("Could not add remove %s: %s", argv[3], strerror(errno));
             return -1;
         }
-    } else if (!strncmp(argv[2],"up",2)) {
+    } else if (!strncmp(argv[2],"up", 2)) {
         return linux_set_iface_flags(br_socket, argv[3], 1);
-    } else if (!strncmp(argv[2],"down",4)) {
+    } else if (!strncmp(argv[2],"down", 4)) {
         return linux_set_iface_flags(br_socket, argv[3], 0);
     } else {
         ALOGE("Command %s not handled.", argv[2]);
@@ -3438,6 +3467,7 @@ int qsap_control_bridge(int argc, char ** argv)
 
     return 0;
 }
+
 
 int qsap_add_or_remove_interface(const char *newIface , int createIface)
 {

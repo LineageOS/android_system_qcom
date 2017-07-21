@@ -345,6 +345,8 @@ typedef enum esap_cmd {
 
     eCMD_ENABLE_WIGIG_SOFTAP = 72,
     eCMD_INTERFACE           = 73,
+    eCMD_SSID2               = 74,
+    eCMD_BRIDGE              = 75,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
