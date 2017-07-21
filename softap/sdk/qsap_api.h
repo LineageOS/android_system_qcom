@@ -618,6 +618,7 @@ int qsap_prepare_softap(void);
 int qsap_unprepare_softap(void);
 int qsap_is_fst_enabled(void);
 int qsap_control_bridge(int argc, char ** argv);
+int linux_get_ifhwaddr(const char *ifname, char *addr);
 
 #if __cplusplus
 };  // extern "C"

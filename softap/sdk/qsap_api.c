@@ -45,6 +45,7 @@
 #include <unistd.h>
 #include <private/android_filesystem_config.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/family.h>
@@ -3464,6 +3465,33 @@ int qsap_control_bridge(int argc, char ** argv)
         ALOGE("Command %s not handled.", argv[2]);
         return -1;
     }
+
+    return 0;
+}
+
+
+int linux_get_ifhwaddr(const char *ifname, char *addr)
+{
+    struct ifreq ifr;
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+#ifndef MAC2STR
+#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+#endif
+    memset(&ifr, 0, sizeof(ifr));
+    strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr)) {
+        ALOGE("Could not get interface %s hwaddr: %s", ifname, strerror(errno));
+        return -1;
+    }
+
+    if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
+        ALOGE("%s: Invalid HW-addr family 0x%04x", ifname, ifr.ifr_hwaddr.sa_family);
+        return -1;
+    }
+    memcpy(addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+    ALOGE("%s: " MACSTR, ifname, MAC2STR(addr));
 
     return 0;
 }
