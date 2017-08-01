@@ -54,7 +54,6 @@
 
 #include "qsap_api.h"
 #include "qsap.h"
-#include "wifi_fst.h"
 
 #include <sys/system_properties.h>
 
@@ -695,21 +694,4 @@ s32 wifi_qsap_stop_wigig_softap(void)
     ALOGD("Wigig SoftAP stopped successfully");
     usleep(AP_BSS_STOP_DELAY);
     return eSUCCESS;
-}
-
-int qsap_prepare_softap()
-{
-    ALOGD("Starting fstman\n");
-    return wifi_start_fstman(TRUE);
-}
-
-int qsap_unprepare_softap()
-{
-    ALOGD("Stopping fstman\n");
-    return wifi_stop_fstman(TRUE);
-}
-
-int qsap_is_fst_enabled()
-{
-    return is_fst_enabled();
 }
