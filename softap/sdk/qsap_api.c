@@ -2544,7 +2544,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     pVal = pcmd + strlen(cmd_list[cNum].name);
     if( (cNum != eCMD_COMMIT) &&
         (cNum != eCMD_RESET_TO_DEFAULT) &&
-        ((*pVal != '=') || (strlen(pVal) < 2)) ) {
+        ((*pVal != '=') || (((eCMD_PASSPHRASE != cNum)) && (strlen(pVal) < 2)))) {
         *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
         return;
     }
