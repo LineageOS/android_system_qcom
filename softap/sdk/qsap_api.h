@@ -93,7 +93,7 @@ enum error_val {
 #define CONFIG_FILE_5G "/data/vendor/wifi/hostapd_dual5g.conf"
 
 /** Configuration file name */
-#define CONFIG_FILE "/data/vendor/wifi/hostapd.conf"
+#define CONFIG_FILE "/data/misc/wifi/hostapd.conf"
 
 /** Default configuration file path */
 #define DEFAULT_CONFIG_FILE_PATH "/system/etc/hostapd/hostapd_default.conf"
@@ -347,6 +347,7 @@ typedef enum esap_cmd {
     eCMD_INTERFACE           = 73,
     eCMD_SSID2               = 74,
     eCMD_BRIDGE              = 75,
+    eCMD_CTRL_INTERFACE      = 76,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;

@@ -179,6 +179,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "interface",             NULL             },
     { "ssid2",                 NULL             },
     { "bridge",                NULL             },
+    { "ctrl_interface",        NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
