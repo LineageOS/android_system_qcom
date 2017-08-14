@@ -348,6 +348,8 @@ typedef enum esap_cmd {
     eCMD_SSID2               = 74,
     eCMD_BRIDGE              = 75,
     eCMD_CTRL_INTERFACE      = 76,
+    eCMD_VENDOR_ELEMENT      = 77,
+    eCMD_ASSOCRESP_ELEMENT   = 78,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
