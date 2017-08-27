@@ -45,6 +45,7 @@
 #include <unistd.h>
 #include <private/android_filesystem_config.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/family.h>
@@ -64,7 +65,7 @@
 #define QCSAP_PARAM_GET_AUTO_CHANNEL 9
 #define WE_SET_SAP_CHANNELS  3
 
-//#define LOG_TAG "QCSDK-"
+#define LOG_TAG "QCSDK"
 
 #include "cutils/properties.h"
 #include "cutils/log.h"
@@ -82,6 +83,15 @@ static volatile int gIniUpdated = 0;
 s8 *Cmd_req[eCMD_REQ_LAST] = {
     "get",
     "set"
+};
+
+/** Supported config file requests.
+  * WANRING: The enum eConf_req in the file qsap_api.h should be
+  * updated if Conf_req[], us updated
+  */
+s8 *Conf_req[CONF_REQ_LAST] = {
+    "dual2g",
+    "dual5g"
 };
 
 /*
@@ -167,6 +177,9 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "ieee80211h",            NULL             },
     { "enable_wigig_softap",   NULL             },
     { "interface",             NULL             },
+    { "ssid2",                 NULL             },
+    { "bridge",                NULL             },
+    { "ctrl_interface",        NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
@@ -2423,6 +2436,7 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, int pmode_len, s8 *tbuf,
             qsap_change_cfg(pcfg, &cmd_list[eCMD_REQUIRE_HT],ENABLE);
             /* fall through */
         case HW_MODE_N:
+        case HW_MODE_G:
         case HW_MODE_A:
             ulen = *tlen;
             qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_enable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
@@ -2512,6 +2526,15 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
 
     SKIP_BLANK_SPACE(pcmd);
 
+    if(!(strncmp(pcmd, Conf_req[CONF_2g], strlen(Conf_req[CONF_2g])))) {
+           pcmd += strlen(Conf_req[CONF_2g]);
+           SKIP_BLANK_SPACE(pcmd);
+    } else if (!(strncmp(pcmd, Conf_req[CONF_5g], strlen(Conf_req[CONF_5g])))) {
+           pcmd += strlen(Conf_req[CONF_5g]);
+           SKIP_BLANK_SPACE(pcmd);
+    } else {
+	    // DO NOTHING
+    }
     cNum = qsap_get_cmd_num(pcmd);
     if(cNum == eCMD_INVALID) {
         *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
@@ -2644,6 +2667,8 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
             value = strlen(pVal);
             if(SSD_MAX_LEN < value)
                 goto error;
+            /* Disable ssid2 while setting ssid */
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_SSID2], DISABLE);
             break;
 
         case eCMD_SET_MAX_CLIENTS:
@@ -3033,6 +3058,10 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
            *plen = qsap_scnprintf(presp, *plen, "%s", (value == eSUCCESS) ? SUCCESS :
                              ERR_UNKNOWN);
             return;
+        case eCMD_SSID2:
+            /* Disable ssid while setting ssid2 */
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_SSID], DISABLE);
+            break;
 
         default: ;
             /** Do not goto error, in default case */
@@ -3072,6 +3101,16 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
     /* Skip any blank spaces */
     SKIP_BLANK_SPACE(pcmd);
 
+    if(!(strncmp(pcmd, Cmd_req[eCMD_SET], strlen(Cmd_req[eCMD_SET])))) {
+       if(!(strncmp(pcmd+4, Conf_req[CONF_2g], strlen(Conf_req[CONF_2g])))) {
+           pconffile = CONFIG_FILE_2G;
+       } else if (!(strncmp(pcmd+4, Conf_req[CONF_5g], strlen(Conf_req[CONF_5g])))) {
+           pconffile = CONFIG_FILE_5G;
+       } else {
+           pconffile = CONFIG_FILE;
+       }
+    }
+
     check_for_configuration_files();
     if(fIni == NULL)
         qsap_set_ini_filename();
@@ -3101,6 +3140,7 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
 #define DEFAULT_AUTH_ALG     1
 #define RECV_BUF_LEN         255
 #define CMD_BUF_LEN          255
+#define SET_BUF_LEN          15
 
 /** Command input
     argv[3] = SSID,
@@ -3117,6 +3157,8 @@ int qsapsetSoftap(int argc, char *argv[])
     int i;
     int hidden = 0;
     int sec = SEC_MODE_NONE;
+    char setCmd[SET_BUF_LEN];
+    int offset = 0;
 
     ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
 
@@ -3124,22 +3166,39 @@ int qsapsetSoftap(int argc, char *argv[])
         ALOGD("ARG: %d - %s\n", i+1, argv[i]);
     }
 
+    // check if 2nd arg is dual2g/dual5g
+    if (argc > 2) {
+        // just match 'dual'
+        if (strncmp(argv[2], Conf_req[CONF_2g], 4) == 0) {
+            snprintf(setCmd, SET_BUF_LEN, "set %s", argv[2]);
+            offset = 1;
+            argc--;
+        } else {
+            snprintf(setCmd, SET_BUF_LEN, "set");
+            offset = 0;
+        }
+    }
+
     /* set interface */
     if (argc > 2) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set interface=%s",argv[2]);
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s interface=%s", setCmd, argv[2 + offset]);
     }
     else {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set interface=%s", DEFAULT_INTFERACE);
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s interface=%s", setCmd, DEFAULT_INTFERACE);
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
 
     /** set SSID */
     if(argc > 3) {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set ssid=%s",argv[3]);
+        // In case of dual2g/5g, Set ssid2 with hex values to accomodate sapce and special characters.
+        if (offset)
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s ssid2=%s", setCmd, argv[3 + offset]);
+        else
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s ssid=%s",setCmd, argv[3]);
     }
     else {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set ssid=%s_%d", DEFAULT_SSID, rand());
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s ssid=%s_%d", setCmd, DEFAULT_SSID, rand());
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3150,10 +3209,10 @@ int qsapsetSoftap(int argc, char *argv[])
 
     rlen = RECV_BUF_LEN;
     if (argc > 4) {
-        if (strcmp(argv[4], "hidden") == 0) {
+        if (strcmp(argv[4 + offset], "hidden") == 0) {
              hidden = 1;
         }
-        snprintf(cmdbuf, CMD_BUF_LEN, "set ignore_broadcast_ssid=%d", hidden);
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s ignore_broadcast_ssid=%d", setCmd, hidden);
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
         if(strncmp("success", respbuf, rlen) != 0) {
             ALOGE("Failed to set ignore_broadcast_ssid \n");
@@ -3163,7 +3222,7 @@ int qsapsetSoftap(int argc, char *argv[])
     /** channel */
     rlen = RECV_BUF_LEN;
     if(argc > 5) {
-        snprintf(cmdbuf, CMD_BUF_LEN, "set channel=%d", atoi(argv[5]));
+        snprintf(cmdbuf, CMD_BUF_LEN, "%s channel=%d", setCmd, atoi(argv[5 + offset]));
         (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
         if(strncmp("success", respbuf, rlen) != 0) {
@@ -3177,22 +3236,22 @@ int qsapsetSoftap(int argc, char *argv[])
     if(argc > 6) {
 
         /**TODO : need to identify the SEC strings for "wep", "wpa", "wpa2" */
-        if(!strcmp(argv[6], "open"))
+        if(!strcmp(argv[6 + offset], "open"))
             sec = SEC_MODE_NONE;
 
-        else if(!strcmp(argv[6], "wep"))
+        else if(!strcmp(argv[6 + offset], "wep"))
             sec = SEC_MODE_WEP;
 
-        else if(!strcmp(argv[6], "wpa-psk"))
+        else if(!strcmp(argv[6 + offset], "wpa-psk"))
             sec = SEC_MODE_WPA_PSK;
 
-        else if(!strcmp(argv[6], "wpa2-psk"))
+        else if(!strcmp(argv[6 + offset], "wpa2-psk"))
             sec = SEC_MODE_WPA2_PSK;
 
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set security_mode=%d",sec);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s security_mode=%d",setCmd, sec);
     }
     else {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf) , "set security_mode=%d", DEFAULT_AUTH_ALG);
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf) , "%s security_mode=%d", setCmd, DEFAULT_AUTH_ALG);
     }
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
@@ -3207,11 +3266,11 @@ int qsapsetSoftap(int argc, char *argv[])
     if ( (sec == SEC_MODE_WPA_PSK) || (sec == SEC_MODE_WPA2_PSK) ) {
         if(argc > 7) {
             /* If the input passphrase is more than 63 characters, consider first 63 characters only*/
-            if ( strlen(argv[7]) > 63 ) argv[7][63] = '\0';
-            qsap_scnprintf(cmdbuf, CMD_BUF_LEN, "set wpa_passphrase=%s",argv[7]);
+            if ( strlen(argv[7 + offset]) > 63 ) argv[7 + offset][63] = '\0';
+            qsap_scnprintf(cmdbuf, CMD_BUF_LEN, "%s wpa_passphrase=%s",setCmd, argv[7 + offset]);
         }
         else {
-            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set wpa_passphrase=%s", DEFAULT_PASSPHRASE);
+            qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s wpa_passphrase=%s", setCmd, DEFAULT_PASSPHRASE);
         }
     }
 
@@ -3223,7 +3282,7 @@ int qsapsetSoftap(int argc, char *argv[])
 
     rlen = RECV_BUF_LEN;
     if(argc > 8) {
-        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set max_num_sta=%d",atoi(argv[8]));
+        qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s max_num_sta=%d",setCmd, atoi(argv[8 + offset]));
     }
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3233,7 +3292,7 @@ int qsapsetSoftap(int argc, char *argv[])
     }
     rlen = RECV_BUF_LEN;
 
-    qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "set commit");
+    qsap_scnprintf(cmdbuf, sizeof(cmdbuf), "%s commit", setCmd);
 
     (void) qsap_hostd_exec_cmd(cmdbuf, respbuf, &rlen);
 
@@ -3267,14 +3326,14 @@ void check_for_configuration_files(void)
     /* Check if configuration files are present, if not create the default files */
 
     /* If configuration file does not exist copy the default file */
-    if ( NULL == (fp = fopen(CONFIG_FILE, "r")) ) {
-        wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
+    if ( NULL == (fp = fopen(pconffile, "r")) ) {
+        wifi_qsap_reset_to_default(pconffile, DEFAULT_CONFIG_FILE_PATH);
     }
     else {
 
         /* The configuration file could be of 0 byte size, replace with default */
         if (check_for_config_file_size(fp) <= 0)
-            wifi_qsap_reset_to_default(CONFIG_FILE, DEFAULT_CONFIG_FILE_PATH);
+            wifi_qsap_reset_to_default(pconffile, DEFAULT_CONFIG_FILE_PATH);
 
         fclose(fp);
     }
@@ -3329,6 +3388,115 @@ void qsap_set_ini_filename(void)
         ALOGE("INI FILE PROP NOT PRESENT: Use default path %s\n", fIni);
     return;
 }
+
+// IOCTL command to create and delete bridge interface //
+#ifndef SIOCBRADDBR
+#define SIOCBRADDBR 0x89a0
+#endif
+#ifndef SIOCBRDELBR
+#define SIOCBRDELBR 0x89a1
+#endif
+
+static int linux_set_iface_flags(int sock, const char *ifname, int dev_up)
+{
+    struct ifreq ifr;
+    int ret;
+
+    if (sock < 0)
+        return -1;
+
+    memset(&ifr, 0, sizeof(ifr));
+    strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
+
+    if (ioctl(sock, SIOCGIFFLAGS, &ifr) != 0) {
+        ret = errno ? -errno : -999;
+        ALOGE("Could not read interface %s flags: %s",
+               ifname, strerror(errno));
+        return ret;
+    }
+
+    if (dev_up) {
+        if (ifr.ifr_flags & IFF_UP)
+            return 0;
+        ifr.ifr_flags |= IFF_UP;
+    } else {
+        if (!(ifr.ifr_flags & IFF_UP))
+            return 0;
+        ifr.ifr_flags &= ~IFF_UP;
+    }
+
+    if (ioctl(sock, SIOCSIFFLAGS, &ifr) != 0) {
+        ret = errno ? -errno : -999;
+        ALOGE("Could not set interface %s flags (%s): %s",
+               ifname, dev_up ? "UP" : "DOWN", strerror(errno));
+        return ret;
+    }
+    return 0;
+}
+
+int qsap_control_bridge(int argc, char ** argv)
+{
+    int br_socket;
+
+    if (argc < 4) {
+        ALOGE("Command not supported");
+        return -1;
+    }
+
+    br_socket = socket(PF_INET, SOCK_DGRAM, 0);
+    if (br_socket < 0) {
+        ALOGE("socket(PF_INET,SOCK_DGRAM): %s",strerror(errno));
+        return -1;
+    }
+    if (!strncmp(argv[2],"create", 6)) {
+        if (ioctl(br_socket, SIOCBRADDBR, argv[3]) < 0) {
+            ALOGE("Could not add bridge %s: %s", argv[3], strerror(errno));
+            return -1;
+        }
+    } else if (!strncmp(argv[2],"remove", 6)) {
+        if (ioctl(br_socket, SIOCBRDELBR, argv[3]) < 0) {
+            ALOGE("Could not add remove %s: %s", argv[3], strerror(errno));
+            return -1;
+        }
+    } else if (!strncmp(argv[2],"up", 2)) {
+        return linux_set_iface_flags(br_socket, argv[3], 1);
+    } else if (!strncmp(argv[2],"down", 4)) {
+        return linux_set_iface_flags(br_socket, argv[3], 0);
+    } else {
+        ALOGE("Command %s not handled.", argv[2]);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int linux_get_ifhwaddr(const char *ifname, char *addr)
+{
+    struct ifreq ifr;
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+#ifndef MAC2STR
+#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+#endif
+    memset(&ifr, 0, sizeof(ifr));
+    strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr)) {
+        ALOGE("Could not get interface %s hwaddr: %s", ifname, strerror(errno));
+        return -1;
+    }
+
+    if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
+        ALOGE("%s: Invalid HW-addr family 0x%04x", ifname, ifr.ifr_hwaddr.sa_family);
+        return -1;
+    }
+    memcpy(addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+    ALOGE("%s: " MACSTR, ifname, MAC2STR(addr));
+
+    return 0;
+}
+
 
 int qsap_add_or_remove_interface(const char *newIface , int createIface)
 {
