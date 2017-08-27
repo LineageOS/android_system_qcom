@@ -3157,7 +3157,7 @@ int qsapsetSoftap(int argc, char *argv[])
     int i;
     int hidden = 0;
     int sec = SEC_MODE_NONE;
-    char setCmd[SET_BUF_LEN];
+    char setCmd[SET_BUF_LEN] = "set";
     int offset = 0;
 
     ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
@@ -3167,16 +3167,10 @@ int qsapsetSoftap(int argc, char *argv[])
     }
 
     // check if 2nd arg is dual2g/dual5g
-    if (argc > 2) {
-        // just match 'dual'
-        if (strncmp(argv[2], Conf_req[CONF_2g], 4) == 0) {
+    if (argc > 2 && (strncmp(argv[2], Conf_req[CONF_2g], 4) == 0)) {
             snprintf(setCmd, SET_BUF_LEN, "set %s", argv[2]);
             offset = 1;
             argc--;
-        } else {
-            snprintf(setCmd, SET_BUF_LEN, "set");
-            offset = 0;
-        }
     }
 
     /* set interface */
