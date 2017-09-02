@@ -11,6 +11,8 @@ LOCAL_MODULE := libQWiFiSoftApCfg
 
 LOCAL_MODULE_TAGS := optional
 
+LOCAL_LDLIBS := -llog
+
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include \
                     $(JNI_H_INCLUDE)
 
