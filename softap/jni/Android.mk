@@ -15,6 +15,6 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include \
                     $(JNI_H_INCLUDE)
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
-LOCAL_SHARED_LIBRARIES := libsysutils libcutils libnetutils libcrypto
+LOCAL_SHARED_LIBRARIES := libsysutils libcutils libnetutils libcrypto liblog
 
 include $(BUILD_SHARED_LIBRARY)

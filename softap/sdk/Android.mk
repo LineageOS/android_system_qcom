@@ -12,8 +12,6 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS += -DSDK_VERSION=\"0.0.1.0\"
 
-LOCAL_LDLIBS := -llog
-
 LOCAL_COPY_HEADERS_TO := sdk/softap/include
 LOCAL_COPY_HEADERS := qsap_api.h
 LOCAL_COPY_HEADERS += qsap.h
@@ -63,7 +61,7 @@ LOCAL_SRC_FILES := qsap_api.c \
 
 LOCAL_PRELINK_MODULE := false
 
-LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_legacy libnl
+LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_legacy libnl liblog
 
 include $(BUILD_SHARED_LIBRARY)
 
