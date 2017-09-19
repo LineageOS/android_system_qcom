@@ -260,6 +260,9 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
     while(NULL != fgets(buf, MAX_CONF_LINE_LEN, fcfg)) {
         s8 *pline = buf;
 
+        if (strlen(buf) == 0)
+           continue;
+
         /** Skip the commented lines */
         if(buf[0] == '#') {
             if (ignore_comment) {
