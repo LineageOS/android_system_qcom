@@ -12,6 +12,8 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS += -DSDK_VERSION=\"0.0.1.0\"
 
+LOCAL_USE_VNDK := true
+
 LOCAL_COPY_HEADERS_TO := sdk/softap/include
 LOCAL_COPY_HEADERS := qsap_api.h
 LOCAL_COPY_HEADERS += qsap.h
