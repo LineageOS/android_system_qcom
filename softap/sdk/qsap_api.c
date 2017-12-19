@@ -43,7 +43,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <private/android_filesystem_config.h>
+#include <cutils/android_filesystem_config.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <netlink/netlink.h>
