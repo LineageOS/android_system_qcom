@@ -260,6 +260,9 @@ static s32 qsap_read_cfg(s8 *pfile, struct Command * pcmd, s8 *presp, u32 *plen,
     while(NULL != fgets(buf, MAX_CONF_LINE_LEN, fcfg)) {
         s8 *pline = buf;
 
+        if (strlen(buf) == 0)
+           continue;
+
         /** Skip the commented lines */
         if(buf[0] == '#') {
             if (ignore_comment) {
@@ -2544,7 +2547,7 @@ static void qsap_handle_set_request(s8 *pcmd, s8 *presp, u32 *plen)
     pVal = pcmd + strlen(cmd_list[cNum].name);
     if( (cNum != eCMD_COMMIT) &&
         (cNum != eCMD_RESET_TO_DEFAULT) &&
-        ((*pVal != '=') || (strlen(pVal) < 2)) ) {
+        ((*pVal != '=') || (((eCMD_PASSPHRASE != cNum)) && (strlen(pVal) < 2)))) {
         *plen = qsap_scnprintf(presp, *plen, "%s", ERR_INVALID_ARG);
         return;
     }
@@ -3157,7 +3160,7 @@ int qsapsetSoftap(int argc, char *argv[])
     int i;
     int hidden = 0;
     int sec = SEC_MODE_NONE;
-    char setCmd[SET_BUF_LEN];
+    char setCmd[SET_BUF_LEN] = "set";
     int offset = 0;
 
     ALOGD("%s, %s, %s, %d\n", __FUNCTION__, argv[0], argv[1], argc);
@@ -3167,16 +3170,10 @@ int qsapsetSoftap(int argc, char *argv[])
     }
 
     // check if 2nd arg is dual2g/dual5g
-    if (argc > 2) {
-        // just match 'dual'
-        if (strncmp(argv[2], Conf_req[CONF_2g], 4) == 0) {
+    if (argc > 2 && (strncmp(argv[2], Conf_req[CONF_2g], 4) == 0)) {
             snprintf(setCmd, SET_BUF_LEN, "set %s", argv[2]);
             offset = 1;
             argc--;
-        } else {
-            snprintf(setCmd, SET_BUF_LEN, "set");
-            offset = 0;
-        }
     }
 
     /* set interface */

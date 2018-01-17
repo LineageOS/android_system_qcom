@@ -509,7 +509,7 @@ typedef struct sap_auto_channel_info {
 #define IS_VALID_BSSID(x) (((value == ENABLE) || (value == DISABLE)) ? TRUE: FALSE)
 
 /** Validate the length of the passphrase */
-#define IS_VALID_PASSPHRASE_LEN(x) (((x >= PASSPHRASE_MIN) && (x <= PASSPHRASE_MAX)) ? TRUE: FALSE)
+#define IS_VALID_PASSPHRASE_LEN(x) ((((x >= PASSPHRASE_MIN) && (x <= PASSPHRASE_MAX)) || (x == 0)) ? TRUE: FALSE)
 
 /** Validate the beacon interval */
 #define IS_VALID_BEACON(x) (((x >= BCN_INTERVAL_MIN) && (x <= BCN_INTERVAL_MAX)) ? TRUE: FALSE)
