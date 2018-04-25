@@ -14,9 +14,8 @@ LOCAL_CFLAGS += -DSDK_VERSION=\"0.0.1.0\"
 
 LOCAL_LDLIBS := -llog
 
-LOCAL_COPY_HEADERS_TO := sdk/softap/include
-LOCAL_COPY_HEADERS := qsap_api.h
-LOCAL_COPY_HEADERS += qsap.h
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/qsap_api.h \
+                               $(LOCAL_PATH)/qsap.h
 
 ifdef WIFI_DRIVER_MODULE_PATH
 LOCAL_CFLAGS += -DWIFI_DRIVER_MODULE_PATH=\"$(WIFI_DRIVER_MODULE_PATH)\"
