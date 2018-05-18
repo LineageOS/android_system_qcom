@@ -68,5 +68,7 @@ LOCAL_PRELINK_MODULE := false
 
 LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_legacy libnl
 
+LOCAL_HEADER_LIBRARIES := libcutils_headers
+
 include $(BUILD_SHARED_LIBRARY)
 
