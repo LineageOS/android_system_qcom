@@ -2373,6 +2373,10 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
 
     ulen = *tlen;
 
+    /* Do not worry about hw_mode if intention is to use ACS (channel=0) */
+    if (channel == 0)
+        goto end;
+
     /** Read the current operating mode */
     if(NULL == (pcfgval = qsap_get_config_value(pconffile, &cmd_list[eCMD_HW_MODE], tbuf, &ulen))) {
         return eERR_UNKNOWN;
@@ -2409,6 +2413,7 @@ static int qsap_set_channel(s32 channel, s8 *tbuf, u32 *tlen)
         }
     }
 
+end:
     qsap_scnprintf(schan, sizeof(schan), "%ld", channel);
 
     return qsap_write_cfg(pcfg, &cmd_list[eCMD_CHAN], schan, tbuf, tlen, HOSTAPD_CONF_QCOM_FILE);
