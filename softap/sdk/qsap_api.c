@@ -43,7 +43,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <private/android_filesystem_config.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <netlink/netlink.h>
@@ -67,8 +66,8 @@
 
 #define LOG_TAG "QCSDK"
 
-#include "cutils/properties.h"
-#include "cutils/log.h"
+#include <cutils/properties.h>
+#include <cutils/log.h>
 
 #define SKIP_BLANK_SPACE(x) {while(*x != '\0') { if((*x == ' ') || (*x == '\t')) x++; else break; }}
 

@@ -10,6 +10,10 @@ LOCAL_MODULE:= libqsap_sdk
 
 LOCAL_MODULE_TAGS := optional
 
+ifeq ($(PRODUCT_VENDOR_MOVE_ENABLED), true)
+LOCAL_VENDOR_MODULE := true
+endif
+
 LOCAL_CFLAGS += -DSDK_VERSION=\"0.0.1.0\"
 
 LOCAL_LDLIBS := -llog
@@ -63,6 +67,8 @@ LOCAL_SRC_FILES := qsap_api.c \
 LOCAL_PRELINK_MODULE := false
 
 LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_legacy libnl
+
+LOCAL_HEADER_LIBRARIES := libcutils_headers
 
 include $(BUILD_SHARED_LIBRARY)
 

@@ -33,6 +33,8 @@
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sched.h>
 
 #include <sys/socket.h>
 #include <linux/if.h>
@@ -46,11 +48,12 @@
 
 #define LOG_TAG "QCLDR-"
 
-#include "cutils/log.h"
-#include "cutils/memory.h"
-#include "cutils/misc.h"
-#include "cutils/properties.h"
-#include "private/android_filesystem_config.h"
+#include <cutils/log.h>
+#include <cutils/memory.h>
+#include <cutils/misc.h>
+#include <cutils/properties.h>
+#include <grp.h>
+#include <pwd.h>
 
 #include "qsap_api.h"
 #include "qsap.h"
@@ -631,9 +634,9 @@ int wigig_ensure_entropy_file_exists()
         return -1;
     }
 
-    if (chown(WIGIG_ENTROPY_FILE, AID_SYSTEM, AID_WIFI) < 0) {
+    if (chown(WIGIG_ENTROPY_FILE, getpwnam("system")->pw_uid, getgrnam("wifi")->gr_gid) < 0) {
         ALOGE("Error changing group ownership of %s to %d: %s",
-              WIGIG_ENTROPY_FILE, AID_WIFI, strerror(errno));
+              WIGIG_ENTROPY_FILE, getgrnam("wifi")->gr_gid, strerror(errno));
         unlink(WIGIG_ENTROPY_FILE);
         return -1;
     }
