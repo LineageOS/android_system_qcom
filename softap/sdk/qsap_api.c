@@ -207,7 +207,7 @@ struct Command qsap_str[eSTR_LAST] = {
 
 /** Supported operating mode */
 char *hw_mode[HW_MODE_UNKNOWN] = {
-    "b", "g", "n", "g-only", "n-only", "a"
+    "b", "g", "n", "g-only", "n-only", "a", "any"
 };
 
 /** configuration file path */
@@ -2447,6 +2447,7 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, int pmode_len, s8 *tbuf,
         case HW_MODE_N:
         case HW_MODE_G:
         case HW_MODE_A:
+        case HW_MODE_ANY:
             ulen = *tlen;
             qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_enable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
             break;

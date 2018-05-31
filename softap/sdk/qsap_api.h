@@ -414,6 +414,7 @@ enum oper_mode {
     HW_MODE_G_ONLY = 3,
     HW_MODE_N_ONLY = 4,
     HW_MODE_A = 5,
+    HW_MODE_ANY = 6,
 
     HW_MODE_UNKNOWN
 };
