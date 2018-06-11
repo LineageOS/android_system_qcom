@@ -89,11 +89,11 @@ enum error_val {
 #endif
 
 /** Configuration file name for SAP+SAP*/
-#define CONFIG_FILE_2G "/data/vendor/wifi/hostapd_dual2g.conf"
-#define CONFIG_FILE_5G "/data/vendor/wifi/hostapd_dual5g.conf"
+#define CONFIG_FILE_2G "/data/vendor/wifi/hostapd/hostapd_dual2g.conf"
+#define CONFIG_FILE_5G "/data/vendor/wifi/hostapd/hostapd_dual5g.conf"
 
 /** Configuration file name */
-#define CONFIG_FILE "/data/misc/wifi/hostapd.conf"
+#define CONFIG_FILE "/data/vendor/wifi/hostapd/hostapd.conf"
 
 /** Default configuration file path */
 #define DEFAULT_CONFIG_FILE_PATH "/system/etc/hostapd/hostapd_default.conf"
@@ -102,19 +102,19 @@ enum error_val {
 #define DEFAULT_ACCEPT_LIST_FILE_PATH "/system/etc/hostapd/hostapd.accept"
 
 /** Accept list file name */
-#define ACCEPT_LIST_FILE "/data/misc/wifi/hostapd.accept"
+#define ACCEPT_LIST_FILE "/data/vendor/wifi/hostapd/hostapd.accept"
 
 /** Default Deny list file name */
 #define DEFAULT_DENY_LIST_FILE_PATH "/system/etc/hostapd/hostapd.deny"
 
 /** Deny list file name */
-#define DENY_LIST_FILE "/data/misc/wifi/hostapd.deny"
+#define DENY_LIST_FILE "/data/vendor/wifi/hostapd/hostapd.deny"
 
 /** Default Ini file */
 #define DEFAULT_INI_FILE "/persist/qcom/softap/qcom_cfg_default.ini"
 
 /** SDK control interface path */
-#define SDK_CTRL_IF "/data/misc/wifi/softap_sdk_ctrl"
+#define SDK_CTRL_IF "/data/vendor/wifi/hostapd/ctrl/softap_sdk_ctrl"
 
 /** Maximum length of the line in the configuration file */
 #define MAX_CONF_LINE_LEN  (156)
@@ -414,6 +414,7 @@ enum oper_mode {
     HW_MODE_G_ONLY = 3,
     HW_MODE_N_ONLY = 4,
     HW_MODE_A = 5,
+    HW_MODE_ANY = 6,
 
     HW_MODE_UNKNOWN
 };

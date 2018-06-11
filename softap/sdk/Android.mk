@@ -72,3 +72,8 @@ LOCAL_HEADER_LIBRARIES := libcutils_headers
 
 include $(BUILD_SHARED_LIBRARY)
 
+include $(CLEAR_VARS)
+LOCAL_MODULE := libqsap_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_HEADER_LIBRARY)
