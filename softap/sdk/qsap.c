@@ -603,6 +603,8 @@ int wigig_ensure_entropy_file_exists()
 {
     int ret;
     int destfd;
+    struct passwd *pw;
+    struct group *gr;
 
     ret = access(WIGIG_ENTROPY_FILE, R_OK|W_OK);
     if ((ret == 0) || (errno == EACCES)) {
@@ -634,9 +636,17 @@ int wigig_ensure_entropy_file_exists()
         return -1;
     }
 
-    if (chown(WIGIG_ENTROPY_FILE, getpwnam("system")->pw_uid, getgrnam("wifi")->gr_gid) < 0) {
-        ALOGE("Error changing group ownership of %s to %d: %s",
-              WIGIG_ENTROPY_FILE, getgrnam("wifi")->gr_gid, strerror(errno));
+    pw = getpwnam("system");
+    gr = getgrnam("wifi");
+    if (pw && gr) {
+        if (chown(WIGIG_ENTROPY_FILE, pw->pw_uid, gr->gr_gid) < 0) {
+            ALOGE("Error changing group ownership of %s to %d: %s",
+                  WIGIG_ENTROPY_FILE, gr->gr_gid, strerror(errno));
+            unlink(WIGIG_ENTROPY_FILE);
+            return -1;
+        }
+    } else {
+        ALOGE("Cannot get pw_uid or gr_gid : %s", strerror(errno));
         unlink(WIGIG_ENTROPY_FILE);
         return -1;
     }
