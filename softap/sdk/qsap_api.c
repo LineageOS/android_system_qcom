@@ -67,7 +67,7 @@
 #define LOG_TAG "QCSDK"
 
 #include <cutils/properties.h>
-#include <cutils/log.h>
+#include <log/log.h>
 
 #define SKIP_BLANK_SPACE(x) {while(*x != '\0') { if((*x == ' ') || (*x == '\t')) x++; else break; }}
 
