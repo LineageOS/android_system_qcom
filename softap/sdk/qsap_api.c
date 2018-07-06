@@ -1304,54 +1304,93 @@ error:
 }
 
 
+static int iftypeCallback(struct nl_msg* msg, void* arg)
+{
+    struct nlmsghdr* ret_hdr = nlmsg_hdr(msg);
+    struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+    int* type = arg;
+
+    struct genlmsghdr *gnlh = (struct genlmsghdr*) nlmsg_data(ret_hdr);
+
+    nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+              genlmsg_attrlen(gnlh, 0), NULL);
+
+    if (tb_msg[NL80211_ATTR_IFTYPE]) {
+        *type = nla_get_u32(tb_msg[NL80211_ATTR_IFTYPE]);
+
+    }
+    return NL_SKIP;
+}
+
 /**
  *    Get the mode of operation.
  */
 int qsap_get_mode(s32 *pmode)
 {
-    int sock;
-    struct iwreq wrq;
+    int ret = eERR_UNKNOWN;
+    struct nl_sock* sk = NULL;
+    int nl80211_id = -1;
+    int if_type = -1;
     s8 interface[MAX_CONF_LINE_LEN];
     u32 len = MAX_CONF_LINE_LEN;
     s8 *pif;
-    int ret;
-    sap_auto_channel_info sap_autochan_info;
-    s32 *pchan;
+    struct nl_msg* msg = NULL;
 
-    *pmode = -1;
+    //get interface name
     if(NULL == (pif = qsap_get_config_value(pconffile,
                                  &qsap_str[STR_INTERFACE], interface, &len))) {
         ALOGD("%s :interface error \n", __func__);
-        goto error;
+        goto nla_put_failure;
     }
 
     interface[len] = '\0';
 
-    sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if(sock < 0) {
-        ALOGD("%s :socket error \n", __func__);
-        goto error;
+    //allocate socket
+    sk = nl_socket_alloc();
+
+    //connect to generic netlink
+    if (genl_connect(sk)) {
+        ALOGE( "Netlink socket Connection failure");
+        ret = eERR_UNKNOWN;
+        goto nla_put_failure;
     }
 
-    memset(&wrq, 0, sizeof(wrq));
-    strlcpy(wrq.ifr_name, pif, sizeof(wrq.ifr_name));
+    //find the nl80211 driver ID
+    nl80211_id = genl_ctrl_resolve(sk, "nl80211");
 
-    ret = ioctl(sock, SIOCGIWMODE, &wrq);
-    if(ret < 0) {
-        ALOGE("%s: ioctl failure \n",__func__);
-        close(sock);
-        goto error;
+    //attach a callback
+    nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM,
+            iftypeCallback, &if_type);
+
+    //allocate a message
+    msg = nlmsg_alloc();
+
+    // setup the message
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_GET_INTERFACE, 0);
+
+    //add message attributes
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(pif));
+
+    // Send the message
+    ret = nl_send_auto_complete(sk, msg);
+    if (ret < 0 ) {
+        ALOGE( "nl_send_auto_complete failure");
+        ret = eERR_UNKNOWN;
+        goto nla_put_failure;
     }
 
-    *pmode = *(s32 *)(&wrq.u.mode);
-    ALOGE("%s: ioctl Get Mode = %d \n",__func__, (int)*pmode);
-    close(sock);
-    return eSUCCESS;
+    //block for message to return
+    nl_recvmsgs_default(sk);
+    *pmode = if_type;
+    ALOGI("%s: (%s) NL80211 Get Mode = %d \n",__func__, pif, (int)*pmode);
+    ret = eSUCCESS;
 
-error:
-    *pmode = -1;
-    ALOGE("%s: (Failure) ioctl Get Mode = %d \n",__func__, (int)*pmode);
-    return eERR_UNKNOWN;
+nla_put_failure:
+    if (sk)
+        nl_socket_free(sk);
+    if (msg)
+        nlmsg_free(msg);
+    return ret;
 }
 
 /**
