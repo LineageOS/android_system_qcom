@@ -181,6 +181,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "ctrl_interface",        NULL             },
     { "vendor_elements",       NULL             },
     { "assocresp_elements",    NULL             },
+    { "acs_exclude_dfs",       NULL             },
 };
 
 struct Command qsap_str[eSTR_LAST] = {
