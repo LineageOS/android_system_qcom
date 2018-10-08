@@ -3174,8 +3174,6 @@ void qsap_hostd_exec_cmd(s8 *pcmd, s8 *presp, u32 *plen)
     }
 
     check_for_configuration_files();
-    if(fIni == NULL)
-        qsap_set_ini_filename();
 
     if(!strncmp(pcmd, Cmd_req[eCMD_GET], strlen(Cmd_req[eCMD_GET])) && isblank(pcmd[strlen(Cmd_req[eCMD_GET])])) {
         qsap_handle_get_request(pcmd, presp, plen);
