@@ -351,6 +351,9 @@ typedef enum esap_cmd {
     eCMD_VENDOR_ELEMENT      = 77,
     eCMD_ASSOCRESP_ELEMENT   = 78,
     eCMD_ACS_EXCLUDE_DFS     = 79,
+    eCMD_WOWLAN_TRIGGERS     = 80,
+    eCMD_ACCEPT_MAC_FILE     = 81,
+    eCMD_DENY_MAC_FILE       = 82,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
