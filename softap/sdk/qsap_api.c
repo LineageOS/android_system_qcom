@@ -185,6 +185,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "wowlan_triggers",       "any"            },
     { "accept_mac_file",       NULL             },
     { "deny_mac_file",         NULL             },
+    { "owe_transition_ifname", NULL             },
 
 };
 

@@ -354,6 +354,7 @@ typedef enum esap_cmd {
     eCMD_WOWLAN_TRIGGERS     = 80,
     eCMD_ACCEPT_MAC_FILE     = 81,
     eCMD_DENY_MAC_FILE       = 82,
+    eCMD_OWE_TRANS_IFNAME    = 83,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
