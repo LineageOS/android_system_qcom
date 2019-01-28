@@ -92,6 +92,9 @@ enum error_val {
 #define CONFIG_FILE_2G "/data/vendor/wifi/hostapd/hostapd_dual2g.conf"
 #define CONFIG_FILE_5G "/data/vendor/wifi/hostapd/hostapd_dual5g.conf"
 
+/** Configuration file name for OWE-transition */
+#define CONFIG_FILE_OWE "/data/vendor/wifi/hostapd/hostapd_owe.conf"
+
 /** Configuration file name */
 #define CONFIG_FILE "/data/vendor/wifi/hostapd/hostapd.conf"
 
@@ -252,6 +255,7 @@ enum eCmd_req {
 enum eConf_req {
     CONF_2g = 0,
     CONF_5g = 1,
+    CONF_owe = 2,
 
     CONF_REQ_LAST
 };
@@ -354,6 +358,7 @@ typedef enum esap_cmd {
     eCMD_WOWLAN_TRIGGERS     = 80,
     eCMD_ACCEPT_MAC_FILE     = 81,
     eCMD_DENY_MAC_FILE       = 82,
+    eCMD_OWE_TRANS_IFNAME    = 83,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
