@@ -359,6 +359,7 @@ typedef enum esap_cmd {
     eCMD_ACCEPT_MAC_FILE     = 81,
     eCMD_DENY_MAC_FILE       = 82,
     eCMD_OWE_TRANS_IFNAME    = 83,
+    eCMD_SAE_REQUIRE_MPF     = 84,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
