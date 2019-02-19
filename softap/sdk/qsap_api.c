@@ -187,6 +187,7 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "accept_mac_file",       NULL             },
     { "deny_mac_file",         NULL             },
     { "owe_transition_ifname", NULL             },
+    { "sae_require_mfp",       NULL             },
 
 };
 
@@ -1918,6 +1919,7 @@ static esap_cmd_t qsap_get_cmd_num(s8 *cName)
 
     for(i=0; i<eCMD_LAST; i++)     {
         len = strlen(cmd_list[i].name);
+
         if(!strncmp(cmd_list[i].name, cName, len)) {
             if((cName[len] == '=') || (cName[len] == '\0'))
                 return i;
