@@ -215,7 +215,7 @@ struct Command qsap_str[eSTR_LAST] = {
 
 /** Supported operating mode */
 char *hw_mode[HW_MODE_UNKNOWN] = {
-    "b", "g", "n", "g-only", "n-only", "a", "any"
+    "b", "g", "n", "g-only", "n-only", "a", "any", "ad"
 };
 
 /** configuration file path */
@@ -2514,6 +2514,10 @@ static int qsap_set_operating_mode(s32 mode, s8 *pmode, int pmode_len, s8 *tbuf,
         case HW_MODE_B:
             ulen = *tlen;
             qsap_write_cfg(pcfg, &cmd_list[eCMD_IEEE80211N],ieee11n_disable, tbuf, &ulen, HOSTAPD_CONF_QCOM_FILE);
+            break;
+        case HW_MODE_AD:
+            /** For 802.11ad, disable the 802.11 HT */
+            qsap_change_cfg(pcfg, &cmd_list[eCMD_HT_CAPAB], DISABLE);
             break;
     }
     if(mode == HW_MODE_G_ONLY || mode == HW_MODE_N_ONLY || mode == HW_MODE_N ) {
