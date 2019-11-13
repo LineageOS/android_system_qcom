@@ -425,6 +425,7 @@ enum oper_mode {
     HW_MODE_N_ONLY = 4,
     HW_MODE_A = 5,
     HW_MODE_ANY = 6,
+    HW_MODE_AD = 7,
 
     HW_MODE_UNKNOWN
 };
@@ -535,7 +536,7 @@ typedef struct sap_auto_channel_info {
 
 /** Validate the pairwise encryption */
 #define IS_VALID_PAIRWISE(x) (((!strcmp(x, "TKIP")) || (!strcmp(x, "CCMP")) || \
-                    (!strcmp(x, "TKIP CCMP")) || (!strcmp(x, "CCMP TKIP"))) ? TRUE : FALSE)
+                    (!strcmp(x, "TKIP CCMP")) || (!strcmp(x, "CCMP TKIP")) || (!strcmp(x, "GCMP"))) ? TRUE : FALSE)
 
 /** Validate the WMM status */
 #define IS_VALID_WMM_STATE(x) (((x >= WMM_AUTO_IN_INI) && (x <= WMM_DISABLED_IN_INI)) ? TRUE: FALSE)
