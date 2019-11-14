@@ -190,6 +190,8 @@ static struct Command cmd_list[eCMD_LAST] = {
     { "owe_transition_ifname", NULL             },
     { "sae_require_mfp",       NULL             },
     { "ieee80211ax",           NULL             },
+    { "enable_edmg",           NULL             },
+    { "edmg_channel",          NULL             },
 
 };
 
