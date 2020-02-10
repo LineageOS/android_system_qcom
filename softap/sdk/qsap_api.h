@@ -91,6 +91,7 @@ enum error_val {
 /** Configuration file name for SAP+SAP*/
 #define CONFIG_FILE_2G "/data/vendor/wifi/hostapd/hostapd_dual2g.conf"
 #define CONFIG_FILE_5G "/data/vendor/wifi/hostapd/hostapd_dual5g.conf"
+#define CONFIG_FILE_60G "/data/vendor/wifi/hostapd/hostapd_60g.conf"
 
 /** Configuration file name for OWE-transition */
 #define CONFIG_FILE_OWE "/data/vendor/wifi/hostapd/hostapd_owe.conf"
@@ -256,6 +257,7 @@ enum eConf_req {
     CONF_2g = 0,
     CONF_5g = 1,
     CONF_owe = 2,
+    CONF_60g = 3,
 
     CONF_REQ_LAST
 };
@@ -360,6 +362,11 @@ typedef enum esap_cmd {
     eCMD_DENY_MAC_FILE       = 82,
     eCMD_OWE_TRANS_IFNAME    = 83,
     eCMD_SAE_REQUIRE_MPF     = 84,
+
+    eCMD_IEEE80211AX         = 85,
+
+    eCMD_ENABLE_EDMG         = 86,
+    eCMD_EDMG_CHANNEL        = 87,
 
     eCMD_LAST     /** New command numbers should be added above this */
 } esap_cmd_t;
