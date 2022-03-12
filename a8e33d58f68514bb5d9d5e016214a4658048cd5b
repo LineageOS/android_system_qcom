@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8505cb01_e683bd77",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 22728
+      },
+      "writtenOn": "2022-03-12T10:42:19Z",
+      "side": 1,
+      "message": "hold a bit, needs review on moto x 2014, where vendor it\u0027s inside of system",
+      "revId": "a8e33d58f68514bb5d9d5e016214a4658048cd5b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
