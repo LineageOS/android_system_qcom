@@ -70,6 +70,8 @@ LOCAL_SHARED_LIBRARIES := libnetutils libutils libbinder libcutils libhardware_l
 
 LOCAL_HEADER_LIBRARIES := libcutils_headers
 
+LOCAL_CFLAGS += -Wall -Wextra -Werror
+
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
