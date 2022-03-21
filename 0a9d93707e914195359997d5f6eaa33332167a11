@@ -16,6 +16,23 @@
       "message": "I tested this on 18.1, so this needs a V+1 for 19.1.",
       "revId": "0a9d93707e914195359997d5f6eaa33332167a11",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6ef31c32_20ab602f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2022-03-21T18:16:41Z",
+      "side": 1,
+      "message": "#### build completed successfully (02:09 (mm:ss)) ####\n\nAnd pushed to device - works fine.",
+      "revId": "0a9d93707e914195359997d5f6eaa33332167a11",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
