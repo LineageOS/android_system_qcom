@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a8e3d539_3b44c083",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11801
+      },
+      "writtenOn": "2022-03-21T18:11:31Z",
+      "side": 1,
+      "message": "I tested this on 18.1, so this needs a V+1 for 19.1.",
+      "revId": "0a9d93707e914195359997d5f6eaa33332167a11",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
