@@ -61,6 +61,8 @@ ifdef WIFI_DRIVER_DEF_CONF_FILE
 LOCAL_CFLAGS += -DWIFI_DRIVER_DEF_CONF_FILE=\"$(WIFI_DRIVER_DEF_CONF_FILE)\"
 endif
 
+LOCAL_CFLAGS += -Wall -Wextra -Werror
+
 LOCAL_SRC_FILES := qsap_api.c \
                    qsap.c
 
