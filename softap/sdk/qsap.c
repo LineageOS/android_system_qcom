@@ -196,9 +196,7 @@ static const char DRIVER_CFG80211_MODULE_ARG[]   = WIFI_CFG80211_DRIVER_MODULE_A
 
 s32 wifi_qsap_load_driver(void)
 {
-    s32    size;
     s32        ret = -1;
-    s32        retry;
 
 
     if (system(SDIO_POLLING_ON)) {
@@ -293,7 +291,6 @@ s32 qsap_send_init_ap(void)
     int s, ret;
     struct iwreq wrq;
     s32 status = eSUCCESS;
-    u32 *params = (u32 *)&wrq.u;
 
      /* Equivalent to: iwpriv wlan0 initAP */
      if ((s = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
@@ -321,7 +318,6 @@ s32 qsap_send_exit_ap(void)
     int s, ret;
     struct iwreq wrq;
     s32 status = eSUCCESS;
-    u32 *params = (u32 *)&wrq.u;
 
      /* Equivalent to: iwpriv wlan0 exitAP */
      if ((s = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
@@ -391,7 +387,6 @@ s32 wifi_qsap_stop_bss(void)
     s8  *iface;
     s32 len = 128;
     struct iwreq wrq;
-    struct iw_priv_args *priv_ptr;
 
     if(ENABLE != is_softap_enabled()) {
         ret = eERR_BSS_NOT_STARTED;
@@ -483,7 +478,6 @@ s32 commit(void)
 s32 wifi_qsap_start_softap()
 {
     s32    retry = 4;
-    FILE * fp;
 
     ALOGD("Starting Soft AP...\n");
 
