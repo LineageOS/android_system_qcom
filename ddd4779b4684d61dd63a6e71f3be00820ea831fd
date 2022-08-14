@@ -16,6 +16,24 @@
       "message": "This is fine on all my devices on 19.1 - but we need to leave as is on 18.1 for victara/legacy.",
       "revId": "ddd4779b4684d61dd63a6e71f3be00820ea831fd",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5f7525b7_04da8aca",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10258
+      },
+      "writtenOn": "2022-08-14T02:19:35Z",
+      "side": 1,
+      "message": "essentially not, /system and /vendor make no difference on non-treble",
+      "parentUuid": "b8935e07_708ee17c",
+      "revId": "ddd4779b4684d61dd63a6e71f3be00820ea831fd",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
